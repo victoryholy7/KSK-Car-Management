@@ -3147,19 +3147,25 @@ window.saveBooking = function(editId) {
   const vObj = typeof DB !== 'undefined' && DB.vehicles ? DB.vehicles.find(v => v.id == vehicleId) : null;
   const carPlate = vObj ? vObj.plate : 'ไม่ได้ระบุรถ';
 
-  // แพ็กข้อมูลให้ตรงตามโครงสร้างของชีทโรงพยาบาล
+  //  แพ็กข้อมูลให้ตรงตามโครงสร้างของชีทโรงพยาบาล (Vehicle_Log)
   const payload = {
-    sheetName: "Bookings", // สั่งให้วิ่งไปลงหน้าชีทการจองรถ
+    sheetName: "Vehicle_Log", // สั่งให้วิ่งไปลงหน้าชีทการบันทึกใช้รถยนต์
     data: [
-      new Date().toLocaleString('th-TH'), // คอลัมน์ A: วันเวลาบันทึก
-      requester,                          // คอลัมน์ B: ชื่อผู้ขอ
-      carPlate,                           // คอลัมน์ C: ทะเบียนรถ
-      department,                         // คอลัมน์ D: ฝ่าย
-      objective,                          // คอลัมน์ E: วัตถุประสงค์
-      destination,                        // คอลัมน์ F: สถานที่ไป
-      passengers,                         // คอลัมน์ G: จำนวนผู้โดยสาร
-      start,                              // คอลัมน์ H: เริ่มเดินทาง
-      end                                 // คอลัมน์ I: กลับวันที่
+      Date.now(),          // คอลัมน์ A: LogID (รหัสบันทึกอัตโนมัติ)
+      dateValue,           // คอลัมน์ B: วันที่ใช้รถ
+      vehicleValue,        // คอลัมน์ C: ยานพาหนะ (ทะเบียนรถ)
+      driverValue,         // คอลัมน์ D: ผู้ขับรถ
+      licenseValue,        // คอลัมน์ E: ใบขับขี่
+      timeStartValue,      // คอลัมน์ F: เวลาออก
+      timeEndValue,        // คอลัมน์ G: เวลากลับ
+      mileageStart,        // คอลัมน์ H: เลขไมล์ออก
+      mileageEnd,          // คอลัมน์ I: เลขไมล์กลับ
+      Math.max(0, mileageEnd - mileageStart), // คอลัมน์ J: ระยะทาง (คำนวณให้อัตโนมัติ)
+      destinationValue,    // คอลัมน์ K: ปลายทาง
+      purposeValue,        // คอลัมน์ L: วัตถุประสงค์
+      passengersValue,     // คอลัมน์ M: ผู้โดยสาร
+      notesValue,          // คอลัมน์ N: หมายเหตุ
+      ""                   // คอลัมน์ O: RecordedAt (ปล่อยว่างไว้ หลังบ้านจะใส่เวลาบันทึกจริงให้เอง)
     ]
   };
 
