@@ -3133,6 +3133,58 @@ function initUsageCharts(){
 
 // Init
 lucide.createIcons();
+// --- โค้ดเชื่อมต่อหน้าเว็บเข้ากับ Google Apps Script Web App ---
+window.saveBooking = function(editId) {
+  const requester = document.getElementById('bRequester')?.value || '';
+  const department = document.getElementById('bDepartment')?.value || '';
+  const vehicleId = document.getElementById('bVehicle')?.value || '';
+  const objective = document.getElementById('bObjective')?.value || '';
+  const destination = document.getElementById('bDestination')?.value || '';
+  const passengers = document.getElementById('bPassengers')?.value || '1';
+  const start = document.getElementById('bStart')?.value || '';
+  const end = document.getElementById('bEnd')?.value || '';
+  
+  const vObj = typeof DB !== 'undefined' && DB.vehicles ? DB.vehicles.find(v => v.id == vehicleId) : null;
+  const carPlate = vObj ? vObj.plate : 'ไม่ได้ระบุรถ';
+
+  // แพ็กข้อมูลให้ตรงตามโครงสร้างของชีทโรงพยาบาล
+  const payload = {
+    sheetName: "Bookings", // สั่งให้วิ่งไปลงหน้าชีทการจองรถ
+    data: [
+      new Date().toLocaleString('th-TH'), // คอลัมน์ A: วันเวลาบันทึก
+      requester,                          // คอลัมน์ B: ชื่อผู้ขอ
+      carPlate,                           // คอลัมน์ C: ทะเบียนรถ
+      department,                         // คอลัมน์ D: ฝ่าย
+      objective,                          // คอลัมน์ E: วัตถุประสงค์
+      destination,                        // คอลัมน์ F: สถานที่ไป
+      passengers,                         // คอลัมน์ G: จำนวนผู้โดยสาร
+      start,                              // คอลัมน์ H: เริ่มเดินทาง
+      end                                 // คอลัมน์ I: กลับวันที่
+    ]
+  };
+
+  // 🔗 วางลิงก์เว็บแอปที่คุณเพิ่งก๊อปปี้มาในช่องว่างด้านล่างนี้ได้เลยครับ 
+  const webAppUrl = "วางลิงก์ที่ก๊อปปี้จากหน้าจอเมื่อกี้ตรงนี้เลยจ้า";
+
+  fetch(webAppUrl, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if(result.success) {
+      alert("🎉 บันทึกข้อมูลลง Google Sheet และเตือนเข้า Telegram เรียบร้อยแล้ว!");
+      if(typeof closeModal === 'function') closeModal('bookingModal');
+      if(typeof renderApp === 'function') { activeTab = 'bookings'; renderApp(); }
+    } else {
+      alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + result.error);
+    }
+  })
+  .catch(error => {
+    console.error("Error:", error);
+    alert("❌ ไม่สามารถเชื่อมต่อหลังบ้านได้");
+  });
+};
   </script>
 </body>
 </html>
