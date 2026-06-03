@@ -3176,7 +3176,7 @@ window.saveBooking = function(editId) {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "text/plain;charset=utf-8"
+  "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   })
@@ -3235,8 +3235,8 @@ function saveVehicleMaster() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3333,8 +3333,8 @@ function saveDriverList() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
-    },
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3377,9 +3377,9 @@ function saveSystemUser() {
   // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+   headers: {
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3429,8 +3429,8 @@ function saveFuelLog() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
-    },
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3479,9 +3479,9 @@ function saveSystemConfig() {
  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+   headers: {
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3565,8 +3565,8 @@ function saveInspectionLog() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
-    },
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3623,8 +3623,8 @@ function saveGPSLog() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
-    },
+  "Content-Type": "application/json"
+   },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
