@@ -3172,8 +3172,12 @@ window.saveBooking = function(editId) {
   // 🔗 วางลิงก์เว็บแอปที่คุณเพิ่งก๊อปปี้มาในช่องว่างด้านล่างนี้ได้เลยครับ 
   const webAppUrl = "https://script.google.com/macros/s/AKfycbxO1NZExH3cuQIR61cMi27mP9WNRDCJbzKRZDIjLw-aNfsFv-jFXQQA4uhx5BmYG22n/exec";
 
+  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
-    method: 'POST',
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3227,10 +3231,12 @@ function saveVehicleMaster() {
     ]
   };
 
-  // 3. ยิงส่งไปที่ Google Web App
+ // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3276,10 +3282,12 @@ function saveMaintenanceLog() {
     ]
   };
 
-  // 3. ยิงส่งไปที่ Google Web App API
+ // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3321,10 +3329,12 @@ function saveDriverList() {
     ]
   };
 
-  // 3. ยิงส่งไปที่ Google Web App API
+  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3364,10 +3374,12 @@ function saveSystemUser() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Web App
+  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3413,10 +3425,12 @@ function saveFuelLog() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App API
+  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3462,10 +3476,12 @@ function saveSystemConfig() {
     ]
   };
 
-  // 3. ยิงข้อมูลออกท่อ Web App API
+ // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3545,10 +3561,12 @@ function saveInspectionLog() {
     ]
   };
 
-  // 4. ยิงข้อมูลไปที่ Web App API
+  // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
@@ -3604,7 +3622,9 @@ function saveGPSLog() {
   // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
     method: "POST",
-    contentType: "application/json",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
     body: JSON.stringify(payload)
   })
   .then(response => response.json())
