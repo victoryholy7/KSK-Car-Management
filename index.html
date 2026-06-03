@@ -3247,6 +3247,380 @@ function saveVehicleMaster() {
     console.error("Error:", error);
   });
 }
+function saveMaintenanceLog() {
+  // 1. ดึงค่าจากช่องอินพุตของหน้าบันทึกซ่อมบำรุง (อิงตามรูป image_f2d269.png)
+  const maintDate      = document.getElementById('maintDateInput')?.value || '';       // วันที่
+  const maintVehicle   = document.getElementById('maintVehicleSelect')?.value || '';  // ยานพาหนะ
+  const maintType      = document.getElementById('maintTypeSelect')?.value || '';     // ประเภท
+  const maintGarage    = document.getElementById('maintGarageInput')?.value || '';    // อู่/ศูนย์บริการ
+  const maintMileage   = parseFloat(document.getElementById('maintMileageInput')?.value) || 0; // เลขไมล์
+  const maintCost      = parseFloat(document.getElementById('maintCostInput')?.value) || 0;    // ค่าใช้จ่าย
+  const maintStatus    = document.getElementById('maintStatusSelect')?.value || '';   // สถานะ
+  const nextMaintDate  = document.getElementById('nextMaintDateInput')?.value || '';  // นัดซ่อมครั้งถัดไป
+  const maintDetail    = document.getElementById('maintDetailInput')?.value || '';    // รายละเอียด
+
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Maintenance_Log" เรียงคอลัมน์ A - J
+  const payload = {
+    sheetName: "Maintenance_Log", // ตรงกับตัวแปรหลังบ้านเป๊ะๆ
+    data: [
+      Date.now(),       // คอลัมน์ A: LogID
+      maintDate,        // คอลัมน์ B: วันที่
+      maintVehicle,     // คอลัมน์ C: ยานพาหนะ
+      maintType,        // คอลัมน์ D: ประเภท
+      maintGarage,      // คอลัมน์ E: อู่/ศูนย์บริการ
+      maintMileage,     // คอลัมน์ F: เลขไมล์
+      maintCost,        // คอลัมน์ G: ค่าใช้จ่าย (บาท)
+      maintStatus,      // คอลัมน์ H: สถานะ
+      nextMaintDate,    // คอลัมน์ I: นัดซ่อมครั้งถัดไป
+      maintDetail       // คอลัมน์ J: รายละเอียด
+    ]
+  };
+
+  // 3. ยิงส่งไปที่ Google Web App API
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 บันทึกประวัติการบำรุงรักษารถเรียบร้อยแล้ว!");
+      document.getElementById('maintenanceForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+function saveDriverList() {
+  // 1. ดึงค่าจากช่องอินพุตของหน้าเพิ่มพนักงานขับรถ (อิงตามรูป image_f2cbfc.png)
+  const driverName   = document.getElementById('driverNameInput')?.value || '';   // ชื่อ-นามสกุล
+  const driverLicense = document.getElementById('driverLicenseInput')?.value || ''; // เลขใบขับขี่
+  const licenseType   = document.getElementById('licenseTypeSelect')?.value || '';  // ประเภท
+  const licenseExp   = document.getElementById('licenseExpInput')?.value || '';   // หมดอายุ
+  const driverPhone   = document.getElementById('driverPhoneInput')?.value || '';   // เบอร์โทร
+  const startWorkDate = document.getElementById('startWorkDateInput')?.value || ''; // วันเริ่มงาน
+  const driverStatus  = document.getElementById('driverStatusSelect')?.value || '';  // สถานะ
+
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Driver_List" เรียงคอลัมน์ A - H
+  const payload = {
+    sheetName: "Driver_List", // ตรงกับตัวแปรหลังบ้านเป๊ะๆ
+    data: [
+      Date.now(),       // คอลัมน์ A: DriverID
+      driverName,       // คอลัมน์ B: ชื่อ-นามสกุล
+      driverLicense,    // คอลัมน์ C: เลขใบขับขี่
+      licenseType,      // คอลัมน์ D: ประเภท
+      licenseExp,       // คอลัมน์ E: หมดอายุ
+      driverPhone,      // คอลัมน์ F: เบอร์โทร
+      startWorkDate,    // คอลัมน์ G: วันเริ่มงาน
+      driverStatus      // คอลัมน์ H: สถานะ
+    ]
+  };
+
+  // 3. ยิงส่งไปที่ Google Web App API
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 เพิ่มข้อมูลพนักงานขับรถคนใหม่เรียบร้อยแล้ว!");
+      document.getElementById('driverForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+function saveSystemUser() {
+  // 1. ดึงค่าจากหน้าฟอร์มเพิ่มผู้ใช้งาน
+  const userName   = document.getElementById('userNameInput')?.value || '';   // ชื่อ-นามสกุล
+  const userEmail  = document.getElementById('userEmailInput')?.value || '';  // อีเมล
+  const userPass   = document.getElementById('userPasswordInput')?.value || ''; // รหัสผ่าน
+  const userRole   = document.getElementById('userRoleSelect')?.value || '';   // สิทธิ์
+  const userDept   = document.getElementById('userDeptInput')?.value || '';    // แผนก
+  const userStatus = document.getElementById('userStatusSelect')?.value || ''; // สถานะ
+
+  // 2. แพ็กกล่องข้อมูลส่งไปแท็บ "System_Users"
+  const payload = {
+    sheetName: "System_Users", // ตรงกับชื่อแท็บใน Google Sheet
+    data: [
+      Date.now(),   // คอลัมน์ A: UserID
+      userName,     // คอลัมน์ B: ชื่อ-นามสกุล
+      userEmail,    // คอลัมน์ C: อีเมล
+      userPass,     // คอลัมน์ D: รหัสผ่าน
+      userRole,     // คอลัมน์ E: สิทธิ์
+      userDept,     // คอลัมน์ F: แผนก
+      userStatus    // คอลัมน์ G: สถานะ
+    ]
+  };
+
+  // 3. ยิงข้อมูลไปที่ Web App
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 เพิ่มบัญชีผู้ใช้งานใหม่เข้าสู่ระบบเรียบร้อยแล้ว!");
+      document.getElementById('userForm')?.reset(); // ล้างฟอร์ม
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+function saveFuelLog() {
+  // 1. ดึงค่าจากช่องอินพุตของหน้าฟอร์มบันทึกการเติมน้ำมัน (อิงตามรูป image_f2c760.png)
+  const fuelDate    = document.getElementById('fuelDateInput')?.value || '';       // วันที่
+  const fuelVehicle = document.getElementById('fuelVehicleSelect')?.value || '';  // ยานพาหนะ
+  const fuelDriver  = document.getElementById('fuelDriverSelect')?.value || '';   // คนขับ
+  const fuelAmount  = parseFloat(document.getElementById('fuelAmountInput')?.value) || 0; // ปริมาณ (ลิตร)
+  const fuelPrice   = parseFloat(document.getElementById('fuelPriceInput')?.value) || 0;  // ราคา/ลิตร
+  const fuelMileage = parseFloat(document.getElementById('fuelMileageInput')?.value) || 0;// เลขไมล์
+  const fuelNotes   = document.getElementById('fuelNotesInput')?.value || '';       // หมายเหตุ
+
+  // คำนวณราคารวมน้ำมันอัตโนมัติ เพื่อส่งไปลงคอลัมน์ G
+  const totalCost   = fuelAmount * fuelPrice;
+
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Fuel_Log" เรียงตามคอลัมน์ A - I
+  const payload = {
+    sheetName: "Fuel_Log", // ตรงตามชื่อแท็บหลังบ้านเป๊ะๆ
+    data: [
+      Date.now(),   // คอลัมน์ A: FuelID
+      fuelDate,     // คอลัมน์ B: วันที่
+      fuelVehicle,  // คอลัมน์ C: ยานพาหนะ
+      fuelDriver,   // คอลัมน์ D: คนขับ
+      fuelAmount,   // คอลัมน์ E: ปริมาณ (ลิตร)
+      fuelPrice,    // คอลัมน์ F: ราคา/ลิตร
+      totalCost,    // คอลัมน์ G: ราคารวม (บาท)
+      fuelMileage,  // คอลัมน์ H: เลขไมล์
+      fuelNotes     // คอลัมน์ I: หมายเหตุ
+    ]
+  };
+
+  // 3. ยิงข้อมูลไปที่ Google Web App API
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 บันทึกประวัติการเติมน้ำมันเรียบร้อยแล้ว!");
+      document.getElementById('fuelForm')?.reset(); // ล้างฟอร์มเมื่อบันทึกสำเร็จ
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+function saveSystemConfig() {
+  // 1. ดึงค่าจากหน้าฟอร์มตั้งค่าระบบ (System_Config)
+  const configDate    = document.getElementById('configDateInput')?.value || '';       // วันที่
+  const configVehicle = document.getElementById('configVehicleSelect')?.value || '';  // ยานพาหนะ
+  const configDriver  = document.getElementById('configDriverSelect')?.value || '';   // คนขับ/ผู้ตั้งค่า
+  const configAmount  = parseFloat(document.getElementById('configAmountInput')?.value) || 0; // ปริมาณเกณฑ์
+  const configPrice   = parseFloat(document.getElementById('configPriceInput')?.value) || 0;  // ราคาอ้างอิง
+  const configMileage = parseFloat(document.getElementById('configMileageInput')?.value) || 0;// เลขไมล์ตั้งต้น
+  const configNotes   = document.getElementById('configNotesInput')?.value || '';       // หมายเหตุ
+
+  // คำนวณงบประมาณรวมอ้างอิงส่งไปลงคอลัมน์ G
+  const totalBudget   = configAmount * configPrice;
+
+  // 2. แพ็กข้อมูลลงกล่องเพื่อยิงเข้าแท็บ "System_Config" (คอลัมน์ A - I)
+  const payload = {
+    sheetName: "System_Config", // ตรงกับชื่อแท็บหลังบ้านเป๊ะๆ
+    data: [
+      Date.now(),     // คอลัมน์ A: ConfigID
+      configDate,     // คอลัมน์ B: วันที่
+      configVehicle,  // คอลัมน์ C: ยานพาหนะ
+      configDriver,   // คอลัมน์ D: คนขับ/ผู้ตั้งค่า
+      configAmount,   // คอลัมน์ E: ปริมาณ
+      configPrice,    // คอลัมน์ F: ราคา/ลิตร
+      totalBudget,    // คอลัมน์ G: งบรวม
+      configMileage,  // คอลัมน์ H: เลขไมล์
+      configNotes     // คอลัมน์ I: หมายเหตุ
+    ]
+  };
+
+  // 3. ยิงข้อมูลออกท่อ Web App API
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 บันทึกการตั้งค่าระบบยานพาหนะเรียบร้อยแล้ว!");
+      document.getElementById('configForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+function saveInspectionLog() {
+  // 1. ดึงข้อมูลพื้นฐานส่วนบน
+  const inspectDate    = document.getElementById('inspectDateInput')?.value || '';     // วันที่ตรวจ
+  const inspectVehicle = document.getElementById('inspectVehicleSelect')?.value || '';// ยานพาหนะ
+  const inspector      = document.getElementById('inspectorSelect')?.value || '';     // ผู้ตรวจสภาพ
+  const inspectMileage = parseFloat(document.getElementById('inspectMileageInput')?.value) || 0; // เลขไมล์
+  const inspectNotes   = document.getElementById('inspectNotesInput')?.value || '';   // หมายเหตุ
+
+  // 2. กวาดเก็บผลตรวจสภาพ 24 รายการ (ดึงค่าจาก Radio Button หรือกลุ่มปุ่มกดที่พี่เลือกไว้)
+  // *โน้ต: แนะนำให้ตั้งชื่อ name หรือ class ของแต่ละข้อให้ดึงง่ายๆ*
+  const checklistResults = {
+    // 🔹 สภาพภายนอกรถ (7 รายการ)
+    body: getChecklistValue('body'),         // ตัวถังไม่มีรอยบุบ/รอยขีด
+    windshield: getChecklistValue('windshield'), // กระจกหน้า-หลังสมบูรณ์
+    mirrors: getChecklistValue('mirrors'),       // กระจกข้างซ้าย-ขวา
+    headlights: getChecklistValue('headlights'), // ไฟหน้า (ซ้าย-ขวา)
+    taillights: getChecklistValue('taillights'), // ไฟท้าย (ซ้าย-ขวา)
+    turnSignals: getChecklistValue('turnSignals'),// ไฟเลี้ยว (หน้า-หลัง)
+    doors: getChecklistValue('doors'),           // ประตูเปิด-ปิดสนิท
+
+    // 🔹 น้ำมันและของเหลว (3 รายการ)
+    engineOil: getChecklistValue('engineOil'),   // น้ำมันเครื่อง
+    batteryFluid: getChecklistValue('batteryFluid'), // น้ำกลั่นแบตเตอรี่
+    washerFluid: getChecklistValue('washerFluid'), // น้ำฉีดกระจก
+
+    // 🔹 ระบบเบรก (2 รายการ)
+    footBrake: getChecklistValue('footBrake'),   // เบรกเท้า (ประสิทธิภาพ)
+    handBrake: getChecklistValue('handBrake'),   // เบรกมือ (ล็อคได้)
+
+    // 🔹 ยางรถยนต์ (5 รายการ)
+    tyreFL: getChecklistValue('tyreFL'),         // ยางหน้าซ้าย (ดอก/ลม)
+    tyreFR: getChecklistValue('tyreFR'),         // ยางหน้าขวา (ดอก/ลม)
+    tyreRL: getChecklistValue('tyreRL'),         // ยางหลังซ้าย (ดอก/ลม)
+    tyreRR: getChecklistValue('tyreRR'),         // ยางหลังขวา (ดอก/ลม)
+    tyrePressure: getChecklistValue('tyrePressure'), // แรงดันลมยาง
+
+    // 🔹 เครื่องปรับอากาศ / ความสะดวก (3 รายการ)
+    airCon: getChecklistValue('airCon'),         // แอร์เย็นปกติ
+    seats: getChecklistValue('seats'),           // เบาะนั่งไม่ชำรุด
+    seatBelts: getChecklistValue('seatBelts'),   // เข็มขัดนิรภัยทุกที่นั่ง
+
+    // 🔹 ระบบไฟ (4 รายการ)
+    highBeams: getChecklistValue('highBeams'),   // ไฟหน้าไฟไกล
+    reverseLight: getChecklistValue('reverseLight'), // ไฟถอย
+    dashboardLight: getChecklistValue('dashboardLight'), // ไฟเตือนบนหน้าปัด
+    horn: getChecklistValue('horn'),             // แตรไฟฟ้า
+    gpsAddons: getChecklistValue('gpsAddons')    // ระบบ GPS / วิทยุ / กล้องติดรถยนต์
+  };
+
+  // 3. แพ็กกล่อง Payload ส่งเข้าแท็บ "Inspection_Log"
+  const payload = {
+    sheetName: "Inspection_Log",
+    data: [
+      Date.now(),                   // คอลัมน์ A: InspectionID
+      inspectDate,                  // คอลัมน์ B: วันที่ตรวจ
+      inspectVehicle,               // คอลัมน์ C: ยานพาหนะ
+      inspector,                    // คอลัมน์ D: ผู้ตรวจ
+      inspectMileage,               // คอลัมน์ E: เลขไมล์
+      JSON.stringify(checklistResults), // คอลัมน์ F: ผลตรวจ 24 ข้อ (แปลงเป็นตัวหนังสือเก็บในช่องเดียว)
+      inspectNotes                  // คอลัมน์ G: หมายเหตุ
+    ]
+  };
+
+  // 4. ยิงข้อมูลไปที่ Web App API
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 บันทึกผลการตรวจสภาพรถเรียบร้อยแล้ว! ขอบคุณที่ร่วมรักษาความปลอดภัยครับ");
+      document.getElementById('inspectionForm')?.reset(); // ล้างฟอร์ม
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
+
+// 💡 ฟังก์ชันช่วยดึงค่าจากกลุ่มปุ่มกด (ปกติ / ไม่ปกติ / ซ่อมด่วน)
+function getChecklistValue(itemName) {
+  // ดึงค่าจาก Radio button ที่โดนเลือกอ้างอิงตาม attribute 'name'
+  const selected = document.querySelector(`input[name="${itemName}"]:checked`);
+  return selected ? selected.value : "ไม่ได้ตรวจ";
+}
+function saveGPSLog() {
+  // 1. ดึงข้อมูลจากช่องกรอกต่างๆ บนหน้าจอ
+  const gpsDeviceId  = document.getElementById('gpsDeviceIdInput')?.value || '';   
+  const gpsProvider  = document.getElementById('gpsProviderInput')?.value || '';   
+  const gpsSimNumber = document.getElementById('gpsSimInput')?.value || '';        
+  const gpsInstallDate = document.getElementById('gpsInstallDateInput')?.value || ''; 
+  const gpsLatitude  = document.getElementById('gpsLatitudeInput')?.value || '';   
+  const gpsLongitude = document.getElementById('gpsLongitudeInput')?.value || '';  
+  const gpsLocationName = document.getElementById('gpsLocationNameInput')?.value || ''; 
+  const gpsSignal    = document.getElementById('gpsSignalSelect')?.value || '';    
+  const gpsNotes     = document.getElementById('gpsNotesInput')?.value || '';       
+
+  // 2. แพ็กข้อมูลเรียงลำดับคอลลัมน์ A - J ส่งให้ Google Sheet
+  const payload = {
+    sheetName: "GPS_Log",
+    data: [
+      Date.now(),         // คอลัมน์ A: รหัสบันทึกอัตโนมัติ
+      gpsDeviceId,        // คอลัมน์ B: รหัสอุปกรณ์
+      gpsProvider,        // คอลัมน์ C: ผู้ให้บริการ
+      gpsSimNumber,       // คอลัมน์ D: เบอร์ซิม
+      gpsInstallDate,     // คอลัมน์ E: วันที่ติดตั้ง
+      gpsLatitude,        // คอลัมน์ F: ละติจูด
+      gpsLongitude,       // คอลัมน์ G: ลองจิจูด
+      gpsLocationName,    // คอลัมน์ H: ชื่อตำแหน่ง/สถานที่
+      gpsSignal,          // คอลัมน์ I: สถานะสัญญาณ
+      gpsNotes            // คอลัมน์ J: หมายเหตุ
+    ]
+  };
+
+  // 3. ยิงข้อมูลไปที่ Google Web App
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 บันทึกข้อมูลและพิกัด GPS เรียบร้อยแล้วค่ะ!");
+      document.getElementById('gpsForm')?.reset(); // ล้างข้อมูลในฟอร์มออกให้พร้อมกรอกใหม่
+    } else {
+      alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ส่งข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
   </script>
 </body>
 </html>
