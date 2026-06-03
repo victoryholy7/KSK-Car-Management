@@ -3191,6 +3191,62 @@ window.saveBooking = function(editId) {
     alert("❌ ไม่สามารถเชื่อมต่อหลังบ้านได้");
   });
 };
+function saveVehicleMaster() {
+  // 1. ดึงค่าจากช่องอินพุตต่างๆ ของหน้าเพิ่มรถ (อิงตามรูป image_f33460.png)
+  const plate        = document.getElementById('plateInput')?.value || '';        // ทะเบียน
+  const brand        = document.getElementById('brandInput')?.value || '';        // ยี่ห้อ
+  const model        = document.getElementById('modelInput')?.value || '';        // รุ่น
+  const type         = document.getElementById('typeSelect')?.value || '';        // ประเภท
+  const color        = document.getElementById('colorInput')?.value || '';        // สี
+  const year         = document.getElementById('yearInput')?.value || '';         // ปีการผลิต
+  const seats        = parseInt(document.getElementById('seatsInput')?.value) || 0; // จำนวนที่นั่ง
+  const fuel         = document.getElementById('fuelSelect')?.value || '';        // เชื้อเพลิง
+  const mileage      = parseFloat(document.getElementById('mileageInput')?.value) || 0; // เลขไมล์
+  const status       = document.getElementById('statusSelect')?.value || '';      // สถานะ
+  const expInsurance = document.getElementById('expInsuranceInput')?.value || ''; // หมดอายุประกัน
+  const expTax       = document.getElementById('expTaxInput')?.value || '';       // หมดอายุภาษี
+  const insuranceType = document.getElementById('insuranceTypeSelect')?.value || ''; // ประเภทประกัน
+
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Vehicle_Master"
+  const payload = {
+    sheetName: "Vehicle_Master", //  ต้องสะกดให้ตรงกับชื่อแท็บหลังบ้านเป๊ะๆ
+    data: [
+      plate,        // คอลัมน์ A
+      brand,        // คอลัมน์ B
+      model,        // คอลัมน์ C
+      type,         // คอลัมน์ D
+      color,        // คอลัมน์ E
+      year,         // คอลัมน์ F
+      seats,        // คอลัมน์ G
+      fuel,         // คอลัมน์ H
+      mileage,      // คอลัมน์ I
+      status,       // คอลัมน์ J
+      expInsurance, // คอลัมน์ K
+      expTax,       // คอลัมน์ L
+      insuranceType // คอลัมน์ M
+    ]
+  };
+
+  // 3. ยิงส่งไปที่ Google Web App
+  fetch(webAppUrl, {
+    method: "POST",
+    contentType: "application/json",
+    body: JSON.stringify(payload)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert("🎉 เพิ่มข้อมูลยานพาหนะคันใหม่เข้าระบบสำเร็จแล้ว!");
+      document.getElementById('vehicleMasterForm')?.reset(); // ล้างฟอร์ม
+    } else {
+      alert("❌ เกิดข้อผิดพลาด: " + result.error);
+    }
+  })
+  .catch(error => {
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
+    console.error("Error:", error);
+  });
+}
   </script>
 </body>
 </html>
