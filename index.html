@@ -3134,43 +3134,50 @@ function initUsageCharts(){
 // Init
 lucide.createIcons();
 // --- โค้ดเชื่อมต่อหน้าเว็บเข้ากับ Google Apps Script Web App ---
-window.saveBooking = function(editId) {
-  const requester = document.getElementById('bRequester')?.value || '';
-  const department = document.getElementById('bDepartment')?.value || '';
-  const vehicleId = document.getElementById('bVehicle')?.value || '';
-  const objective = document.getElementById('bObjective')?.value || '';
-  const destination = document.getElementById('bDestination')?.value || '';
-  const passengers = document.getElementById('bPassengers')?.value || '1';
-  const start = document.getElementById('bStart')?.value || '';
-  const end = document.getElementById('bEnd')?.value || '';
-  
-  const vObj = typeof DB !== 'undefined' && DB.vehicles ? DB.vehicles.find(v => v.id == vehicleId) : null;
-  const carPlate = vObj ? vObj.plate : 'ไม่ได้ระบุรถ';
+// ✅ กำหนด URL ตรงนี้ที่เดียว ทุกฟังก์ชันใช้ร่วมกันได้เลย
+const webAppUrl = "https://script.google.com/macros/s/AKfycbzkOLh45upSc8yDfgrSivjH9QvdFmPIeVTZsiiI23hF6YDVycKPSQ4jqTeEYQdwfc0zUg/exec";
 
-  //  แพ็กข้อมูลให้ตรงตามโครงสร้างของชีทโรงพยาบาล (Vehicle_Log)
+window.saveBooking = function(editId) {
+  // ── ดึงค่าจากฟอร์ม ──────────────────────────────────────────────
+  const dateValue       = document.getElementById('bDate')?.value        || new Date().toISOString().slice(0,10);
+  const vehicleId       = document.getElementById('bVehicle')?.value     || '';
+  const driverValue     = document.getElementById('bDriver')?.value      || document.getElementById('bRequester')?.value || '';
+  const licenseValue    = document.getElementById('bLicense')?.value     || '';
+  const timeStartValue  = document.getElementById('bStart')?.value       || '';
+  const timeEndValue    = document.getElementById('bEnd')?.value         || '';
+  const mileageStart    = parseFloat(document.getElementById('bMileageStart')?.value) || 0;
+  const mileageEnd      = parseFloat(document.getElementById('bMileageEnd')?.value)   || 0;
+  const destinationValue= document.getElementById('bDestination')?.value || '';
+  const purposeValue    = document.getElementById('bObjective')?.value   || '';
+  const passengersValue = parseInt(document.getElementById('bPassengers')?.value)     || 1;
+  const notesValue      = document.getElementById('bNotes')?.value       || '';
+
+  const vObj    = typeof DB !== 'undefined' && DB.vehicles ? DB.vehicles.find(v => v.id == vehicleId) : null;
+  const carPlate= vObj ? vObj.plate : (vehicleId || 'ไม่ได้ระบุรถ');
+
+  // ── แพ็กข้อมูลให้ตรงตามโครงสร้าง Vehicle_Log ─────────────────
+  // HEADERS: LogID | Date | Vehicle | Driver | LicenseNo | TimeStart | TimeEnd |
+  //          MileageStart | MileageEnd | Distance | Destination | Purpose | Passengers | Notes | RecordedAt
   const payload = {
-    sheetName: "Vehicle_Log", // สั่งให้วิ่งไปลงหน้าชีทการบันทึกใช้รถยนต์
+    sheetName: "Vehicle_Log",
     data: [
-      Date.now(),          // คอลัมน์ A: LogID (รหัสบันทึกอัตโนมัติ)
-      dateValue,           // คอลัมน์ B: วันที่ใช้รถ
-      vehicleValue,        // คอลัมน์ C: ยานพาหนะ (ทะเบียนรถ)
-      driverValue,         // คอลัมน์ D: ผู้ขับรถ
-      licenseValue,        // คอลัมน์ E: ใบขับขี่
-      timeStartValue,      // คอลัมน์ F: เวลาออก
-      timeEndValue,        // คอลัมน์ G: เวลากลับ
-      mileageStart,        // คอลัมน์ H: เลขไมล์ออก
-      mileageEnd,          // คอลัมน์ I: เลขไมล์กลับ
-      Math.max(0, mileageEnd - mileageStart), // คอลัมน์ J: ระยะทาง (คำนวณให้อัตโนมัติ)
-      destinationValue,    // คอลัมน์ K: ปลายทาง
-      purposeValue,        // คอลัมน์ L: วัตถุประสงค์
-      passengersValue,     // คอลัมน์ M: ผู้โดยสาร
-      notesValue,          // คอลัมน์ N: หมายเหตุ
-      ""                   // คอลัมน์ O: RecordedAt (ปล่อยว่างไว้ หลังบ้านจะใส่เวลาบันทึกจริงให้เอง)
+      Date.now(),                           // A: LogID
+      dateValue,                            // B: วันที่ใช้รถ
+      carPlate,                             // C: ทะเบียนรถ
+      driverValue,                          // D: ผู้ขับรถ
+      licenseValue,                         // E: เลขใบขับขี่
+      timeStartValue,                       // F: เวลาออก
+      timeEndValue,                         // G: เวลากลับ
+      mileageStart,                         // H: เลขไมล์ออก
+      mileageEnd,                           // I: เลขไมล์กลับ
+      Math.max(0, mileageEnd - mileageStart), // J: ระยะทาง
+      destinationValue,                     // K: ปลายทาง
+      purposeValue,                         // L: วัตถุประสงค์
+      passengersValue,                      // M: ผู้โดยสาร
+      notesValue,                           // N: หมายเหตุ
+      ""                                    // O: RecordedAt (หลังบ้านใส่ให้)
     ]
   };
-
-  // 🔗 วางลิงก์เว็บแอปที่คุณเพิ่งก๊อปปี้มาในช่องว่างด้านล่างนี้ได้เลยครับ 
-  const webAppUrl = "https://script.google.com/macros/s/AKfycbzkOLh45upSc8yDfgrSivjH9QvdFmPIeVTZsiiI23hF6YDVycKPSQ4jqTeEYQdwfc0zUg/exec";
 
   // 3. ยิงข้อมูลไปที่ Google Web App
   fetch(webAppUrl, {
@@ -3212,22 +3219,30 @@ function saveVehicleMaster() {
   const insuranceType = document.getElementById('insuranceTypeSelect')?.value || ''; // ประเภทประกัน
 
   // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Vehicle_Master"
+  // HEADERS: VehicleID|Plate|Brand|Model|Type|Color|Year|Mileage|Fuel|Seats|
+  //          Status|IsAmbulance|Insurance|InsuranceExpiry|TaxExpiry|...|UpdatedAt
   const payload = {
-    sheetName: "Vehicle_Master", //  ต้องสะกดให้ตรงกับชื่อแท็บหลังบ้านเป๊ะๆ
+    sheetName: "Vehicle_Master",
     data: [
-      plate,        // คอลัมน์ A
-      brand,        // คอลัมน์ B
-      model,        // คอลัมน์ C
-      type,         // คอลัมน์ D
-      color,        // คอลัมน์ E
-      year,         // คอลัมน์ F
-      seats,        // คอลัมน์ G
-      fuel,         // คอลัมน์ H
-      mileage,      // คอลัมน์ I
-      status,       // คอลัมน์ J
-      expInsurance, // คอลัมน์ K
-      expTax,       // คอลัมน์ L
-      insuranceType // คอลัมน์ M
+      Date.now(),   // A: VehicleID ← เพิ่มใหม่
+      plate,        // B: Plate
+      brand,        // C: Brand
+      model,        // D: Model
+      type,         // E: Type
+      color,        // F: Color
+      year,         // G: Year
+      mileage,      // H: Mileage ← สลับให้ตรง HEADERS
+      fuel,         // I: Fuel
+      seats,        // J: Seats
+      status,       // K: Status
+      '',           // L: IsAmbulance
+      insuranceType,// M: Insurance (ประเภทประกัน)
+      expInsurance, // N: InsuranceExpiry
+      expTax,       // O: TaxExpiry
+      '','','','',  // P-S: GPS fields (ว่างไว้ก่อน)
+      '','','','',  // T-W: GPS fields
+      '','',        // X-Y: GPS fields
+      new Date().toISOString() // Z: UpdatedAt
     ]
   };
 
@@ -3265,20 +3280,22 @@ function saveMaintenanceLog() {
   const nextMaintDate  = document.getElementById('nextMaintDateInput')?.value || '';  // นัดซ่อมครั้งถัดไป
   const maintDetail    = document.getElementById('maintDetailInput')?.value || '';    // รายละเอียด
 
-  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Maintenance_Log" เรียงคอลัมน์ A - J
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Maintenance_Log" เรียงคอลัมน์ A - K
+  // HEADERS: LogID|Date|Vehicle|Type|Garage|Mileage|Cost|Status|NextDate|Details|RecordedAt
   const payload = {
-    sheetName: "Maintenance_Log", // ตรงกับตัวแปรหลังบ้านเป๊ะๆ
+    sheetName: "Maintenance_Log",
     data: [
-      Date.now(),       // คอลัมน์ A: LogID
-      maintDate,        // คอลัมน์ B: วันที่
-      maintVehicle,     // คอลัมน์ C: ยานพาหนะ
-      maintType,        // คอลัมน์ D: ประเภท
-      maintGarage,      // คอลัมน์ E: อู่/ศูนย์บริการ
-      maintMileage,     // คอลัมน์ F: เลขไมล์
-      maintCost,        // คอลัมน์ G: ค่าใช้จ่าย (บาท)
-      maintStatus,      // คอลัมน์ H: สถานะ
-      nextMaintDate,    // คอลัมน์ I: นัดซ่อมครั้งถัดไป
-      maintDetail       // คอลัมน์ J: รายละเอียด
+      Date.now(),       // A: LogID
+      maintDate,        // B: Date
+      maintVehicle,     // C: Vehicle
+      maintType,        // D: Type
+      maintGarage,      // E: Garage
+      maintMileage,     // F: Mileage
+      maintCost,        // G: Cost
+      maintStatus,      // H: Status
+      nextMaintDate,    // I: NextDate
+      maintDetail,      // J: Details
+      new Date().toISOString() // K: RecordedAt
     ]
   };
 
@@ -3286,7 +3303,7 @@ function saveMaintenanceLog() {
   fetch(webAppUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "text/plain;charset=utf-8"
+      "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   })
@@ -3314,18 +3331,20 @@ function saveDriverList() {
   const startWorkDate = document.getElementById('startWorkDateInput')?.value || ''; // วันเริ่มงาน
   const driverStatus  = document.getElementById('driverStatusSelect')?.value || '';  // สถานะ
 
-  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Driver_List" เรียงคอลัมน์ A - H
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Driver_List" เรียงคอลัมน์ A - I
+  // HEADERS: DriverID|Name|LicenseNo|LicenseType|LicenseExpiry|Phone|StartDate|Status|UpdatedAt
   const payload = {
-    sheetName: "Driver_List", // ตรงกับตัวแปรหลังบ้านเป๊ะๆ
+    sheetName: "Driver_List",
     data: [
-      Date.now(),       // คอลัมน์ A: DriverID
-      driverName,       // คอลัมน์ B: ชื่อ-นามสกุล
-      driverLicense,    // คอลัมน์ C: เลขใบขับขี่
-      licenseType,      // คอลัมน์ D: ประเภท
-      licenseExp,       // คอลัมน์ E: หมดอายุ
-      driverPhone,      // คอลัมน์ F: เบอร์โทร
-      startWorkDate,    // คอลัมน์ G: วันเริ่มงาน
-      driverStatus      // คอลัมน์ H: สถานะ
+      Date.now(),       // A: DriverID
+      driverName,       // B: Name
+      driverLicense,    // C: LicenseNo
+      licenseType,      // D: LicenseType
+      licenseExp,       // E: LicenseExpiry
+      driverPhone,      // F: Phone
+      startWorkDate,    // G: StartDate
+      driverStatus,     // H: Status
+      new Date().toISOString() // I: UpdatedAt ← เพิ่มใหม่
     ]
   };
 
@@ -3361,16 +3380,18 @@ function saveSystemUser() {
   const userStatus = document.getElementById('userStatusSelect')?.value || ''; // สถานะ
 
   // 2. แพ็กกล่องข้อมูลส่งไปแท็บ "System_Users"
+  // HEADERS: UserID|Name|Username|Password|Role|Department|Status|UpdatedAt
   const payload = {
-    sheetName: "System_Users", // ตรงกับชื่อแท็บใน Google Sheet
+    sheetName: "System_Users",
     data: [
-      Date.now(),   // คอลัมน์ A: UserID
-      userName,     // คอลัมน์ B: ชื่อ-นามสกุล
-      userEmail,    // คอลัมน์ C: อีเมล
-      userPass,     // คอลัมน์ D: รหัสผ่าน
-      userRole,     // คอลัมน์ E: สิทธิ์
-      userDept,     // คอลัมน์ F: แผนก
-      userStatus    // คอลัมน์ G: สถานะ
+      Date.now(),   // A: UserID
+      userName,     // B: Name
+      userEmail,    // C: Username (ใช้ email เป็น username)
+      userPass,     // D: Password
+      userRole,     // E: Role
+      userDept,     // F: Department
+      userStatus,   // G: Status
+      new Date().toISOString() // H: UpdatedAt ← เพิ่มใหม่
     ]
   };
 
@@ -3409,19 +3430,22 @@ function saveFuelLog() {
   // คำนวณราคารวมน้ำมันอัตโนมัติ เพื่อส่งไปลงคอลัมน์ G
   const totalCost   = fuelAmount * fuelPrice;
 
-  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Fuel_Log" เรียงตามคอลัมน์ A - I
+  // 2. แพ็กข้อมูลลงกล่อง สั่งวิ่งไปที่หน้า "Fuel_Log" เรียงตามคอลัมน์ A - K
+  // HEADERS: LogID|Date|Vehicle|Driver|Liters|PricePerLiter|TotalCost|Mileage|Efficiency|Notes|RecordedAt
   const payload = {
-    sheetName: "Fuel_Log", // ตรงตามชื่อแท็บหลังบ้านเป๊ะๆ
+    sheetName: "Fuel_Log",
     data: [
-      Date.now(),   // คอลัมน์ A: FuelID
-      fuelDate,     // คอลัมน์ B: วันที่
-      fuelVehicle,  // คอลัมน์ C: ยานพาหนะ
-      fuelDriver,   // คอลัมน์ D: คนขับ
-      fuelAmount,   // คอลัมน์ E: ปริมาณ (ลิตร)
-      fuelPrice,    // คอลัมน์ F: ราคา/ลิตร
-      totalCost,    // คอลัมน์ G: ราคารวม (บาท)
-      fuelMileage,  // คอลัมน์ H: เลขไมล์
-      fuelNotes     // คอลัมน์ I: หมายเหตุ
+      Date.now(),   // A: LogID
+      fuelDate,     // B: Date
+      fuelVehicle,  // C: Vehicle
+      fuelDriver,   // D: Driver
+      fuelAmount,   // E: Liters
+      fuelPrice,    // F: PricePerLiter
+      totalCost,    // G: TotalCost
+      fuelMileage,  // H: Mileage
+      '',           // I: Efficiency ← เพิ่มใหม่ (คำนวณทีหลังใน Sheet ได้)
+      fuelNotes,    // J: Notes
+      new Date().toISOString() // K: RecordedAt ← เพิ่มใหม่
     ]
   };
 
@@ -3547,17 +3571,50 @@ function saveInspectionLog() {
     gpsAddons: getChecklistValue('gpsAddons')    // ระบบ GPS / วิทยุ / กล้องติดรถยนต์
   };
 
-  // 3. แพ็กกล่อง Payload ส่งเข้าแท็บ "Inspection_Log"
+  // 3. วิเคราะห์ผลตรวจแยกตาม HEADERS ของหลังบ้าน
+  // HEADERS: LogID|Date|Vehicle|Inspector|Mileage|UrgentCount|AbnormalCount|FailCount|
+  //          UrgentItems|AbnormalItems|FailItems|Remarks|Result|RecordedAt
+  const urgentItems   = [];
+  const abnormalItems = [];
+  const failItems     = [];
+  const itemLabels = {
+    body:'ตัวถัง', windshield:'กระจกหน้า-หลัง', mirrors:'กระจกข้าง',
+    headlights:'ไฟหน้า', taillights:'ไฟท้าย', turnSignals:'ไฟเลี้ยว', doors:'ประตู',
+    engineOil:'น้ำมันเครื่อง', batteryFluid:'น้ำกลั่นแบต', washerFluid:'น้ำฉีดกระจก',
+    footBrake:'เบรกเท้า', handBrake:'เบรกมือ',
+    tyreFL:'ยางหน้าซ้าย', tyreFR:'ยางหน้าขวา', tyreRL:'ยางหลังซ้าย',
+    tyreRR:'ยางหลังขวา', tyrePressure:'แรงดันลม',
+    airCon:'แอร์', seats:'เบาะนั่ง', seatBelts:'เข็มขัดนิรภัย',
+    highBeams:'ไฟไกล', reverseLight:'ไฟถอย', dashboardLight:'ไฟเตือนหน้าปัด',
+    horn:'แตร', gpsAddons:'GPS/วิทยุ/กล้อง'
+  };
+  Object.entries(checklistResults).forEach(([key, val]) => {
+    const label = itemLabels[key] || key;
+    if (val === 'ซ่อมด่วน') urgentItems.push(label);
+    else if (val === 'ไม่ปกติ') abnormalItems.push(label);
+    else if (val === 'ไม่ผ่าน') failItems.push(label);
+  });
+  const overallResult = urgentItems.length > 0 || failItems.length > 0 ? 'ไม่ผ่าน'
+                      : abnormalItems.length > 0 ? 'ผ่านมีข้อสังเกต' : 'ผ่าน';
+
+  // 4. แพ็กกล่อง Payload ส่งเข้าแท็บ "Inspection_Log"
   const payload = {
     sheetName: "Inspection_Log",
     data: [
-      Date.now(),                   // คอลัมน์ A: InspectionID
-      inspectDate,                  // คอลัมน์ B: วันที่ตรวจ
-      inspectVehicle,               // คอลัมน์ C: ยานพาหนะ
-      inspector,                    // คอลัมน์ D: ผู้ตรวจ
-      inspectMileage,               // คอลัมน์ E: เลขไมล์
-      JSON.stringify(checklistResults), // คอลัมน์ F: ผลตรวจ 24 ข้อ (แปลงเป็นตัวหนังสือเก็บในช่องเดียว)
-      inspectNotes                  // คอลัมน์ G: หมายเหตุ
+      Date.now(),                            // A: LogID
+      inspectDate,                           // B: Date
+      inspectVehicle,                        // C: Vehicle
+      inspector,                             // D: Inspector
+      inspectMileage,                        // E: Mileage
+      urgentItems.length,                    // F: UrgentCount
+      abnormalItems.length,                  // G: AbnormalCount
+      failItems.length,                      // H: FailCount
+      urgentItems.join(' | '),               // I: UrgentItems
+      abnormalItems.join(' | '),             // J: AbnormalItems
+      failItems.join(' | '),                 // K: FailItems
+      inspectNotes,                          // L: Remarks
+      overallResult,                         // M: Result
+      new Date().toISOString()               // N: RecordedAt
     ]
   };
 
@@ -3602,20 +3659,21 @@ function saveGPSLog() {
   const gpsSignal    = document.getElementById('gpsSignalSelect')?.value || '';    
   const gpsNotes     = document.getElementById('gpsNotesInput')?.value || '';       
 
-  // 2. แพ็กข้อมูลเรียงลำดับคอลลัมน์ A - J ส่งให้ Google Sheet
+  // 2. แพ็กข้อมูลเรียงลำดับคอลลัมน์ A - J ให้ตรง HEADERS
+  // HEADERS: LogID|Timestamp|VehicleID|Plate|Lat|Lng|Location|Speed|Signal|UpdatedBy
   const payload = {
     sheetName: "GPS_Log",
     data: [
-      Date.now(),         // คอลัมน์ A: รหัสบันทึกอัตโนมัติ
-      gpsDeviceId,        // คอลัมน์ B: รหัสอุปกรณ์
-      gpsProvider,        // คอลัมน์ C: ผู้ให้บริการ
-      gpsSimNumber,       // คอลัมน์ D: เบอร์ซิม
-      gpsInstallDate,     // คอลัมน์ E: วันที่ติดตั้ง
-      gpsLatitude,        // คอลัมน์ F: ละติจูด
-      gpsLongitude,       // คอลัมน์ G: ลองจิจูด
-      gpsLocationName,    // คอลัมน์ H: ชื่อตำแหน่ง/สถานที่
-      gpsSignal,          // คอลัมน์ I: สถานะสัญญาณ
-      gpsNotes            // คอลัมน์ J: หมายเหตุ
+      Date.now(),         // A: LogID
+      gpsInstallDate || new Date().toISOString(), // B: Timestamp
+      gpsDeviceId,        // C: VehicleID/DeviceID
+      '',                 // D: Plate (ไม่มีในฟอร์ม)
+      gpsLatitude,        // E: Lat
+      gpsLongitude,       // F: Lng
+      gpsLocationName,    // G: Location
+      '',                 // H: Speed (ไม่มีในฟอร์ม)
+      gpsSignal,          // I: Signal
+      gpsProvider + (gpsSimNumber ? ' / ' + gpsSimNumber : '') // J: UpdatedBy (ผู้ให้บริการ/เบอร์ซิม)
     ]
   };
 
