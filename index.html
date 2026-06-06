@@ -1686,14 +1686,10 @@ function submitInspection(){
     urgentCount:urgents, failCount:fails,
     urgentItems, abnormalItems, failItems
   };
-  if(typeof google!=='undefined'&&google.script){
-    google.script.run
-      .withSuccessHandler(function(res){
-        if(!res||!res.success) console.warn('Inspection log error:', res);
-      })
-      .withFailureHandler(function(e){ console.warn('logInspection failed:',e); })
-      .logInspection(payload);
-  }
+  // ── ส่งไป Google Sheet ──
+  const result = urgentItems.length>0||failItems.length>0 ? 'ไม่ผ่าน' : abnormalItems.length>0 ? 'ผ่านมีข้อสังเกต' : 'ผ่าน';
+  _sendToSheet({sheetName:'Inspection_Log',data:[Date.now(),date,vehicle,driver,mileage,urgents,abnormalItems.length,fails,urgentItems.join(' | '),abnormalItems.join(' | '),failItems.join(' | '),remarks,result,new Date().toISOString()]},
+    'บันทึกผลตรวจสภาพรถเรียบร้อยแล้ว!', null);
 
   const s=document.getElementById('inspSuccess');
   if(s){s.classList.remove('hidden');s.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>s.classList.add('hidden'),4000);}
@@ -2411,7 +2407,15 @@ function renderUsageEntry(){
 function submitUsage(){
   const v=document.getElementById('uVehicle').value,d=document.getElementById('uDriver').value,dt=document.getElementById('uDate').value;
   if(!v||!d||!dt)return;
-  DB.usageRecords.unshift({id:Date.now(),date:dt,vehicle:v,driver:d,timeStart:document.getElementById('uTimeStart').value,timeEnd:document.getElementById('uTimeEnd').value,mileageStart:+document.getElementById('uMileageStart').value||0,mileageEnd:+document.getElementById('uMileageEnd').value||0,destination:document.getElementById('uDest').value,purpose:document.getElementById('uPurpose').value,passengers:+document.getElementById('uPass').value||1,notes:document.getElementById('uNotes').value});
+  const ts=document.getElementById('uTimeStart').value,te=document.getElementById('uTimeEnd').value;
+  const ms=+document.getElementById('uMileageStart').value||0,me=+document.getElementById('uMileageEnd').value||0;
+  const dest=document.getElementById('uDest').value,purp=document.getElementById('uPurpose').value;
+  const pass=+document.getElementById('uPass').value||1,notes=document.getElementById('uNotes').value;
+  const id=Date.now();
+  DB.usageRecords.unshift({id,date:dt,vehicle:v,driver:d,timeStart:ts,timeEnd:te,mileageStart:ms,mileageEnd:me,destination:dest,purpose:purp,passengers:pass,notes});
+  // ── ส่งไป Google Sheet ──
+  _sendToSheet({sheetName:'Vehicle_Log',data:[id,dt,v,d,'',ts,te,ms,me,Math.max(0,me-ms),dest,purp,pass,notes,'']},
+    'บันทึกการใช้รถเรียบร้อยแล้ว!', null);
   const s=document.getElementById('usageOk');if(s){s.classList.remove('hidden');setTimeout(()=>s.classList.add('hidden'),3000);}
   document.getElementById('usageEntryForm').reset();
 }
@@ -2821,6 +2825,11 @@ function saveVehicle(editId){
   };
   if(editId){const i=DB.vehicles.findIndex(v=>v.id===editId);if(i>=0)DB.vehicles[i]={...DB.vehicles[i],...data};}
   else{data.id=Date.now();DB.vehicles.push(data);}
+  // ── ส่งไป Google Sheet ──
+  if(!editId){
+    _sendToSheet({sheetName:'Vehicle_Master',data:[data.id,data.plate,data.brand,data.model,data.type,data.color,data.year,data.mileage,data.fuel,data.seats,data.status,data.isAmbulance?'ใช่':'ไม่ใช่',data.insurance,data.insuranceExpiry,data.taxExpiry,data.gpsEnabled?'เปิด':'ปิด',data.gpsDeviceId,data.gpsProvider,data.gpsSimNo,data.gpsInstallDate,data.gpsLat,data.gpsLng,data.gpsLocation,data.gpsSignal,data.gpsRemark,new Date().toISOString()]},
+      'บันทึกข้อมูลยานพาหนะเรียบร้อยแล้ว!', null);
+  }
   closeModal();navigateTo('manage-vehicles');
   showToast('บันทึกข้อมูลยานพาหนะเรียบร้อย');
 }
@@ -2925,6 +2934,11 @@ function saveMaint(editId){
   const data={date:document.getElementById('mDate').value,vehicle:document.getElementById('mVehicle').value,type:document.getElementById('mType').value,garage:document.getElementById('mGarage').value,mileage:+document.getElementById('mMileage').value||0,cost:+document.getElementById('mCost').value||0,status:document.getElementById('mStatus').value,nextDate:document.getElementById('mNextDate').value,details:document.getElementById('mDetails').value};
   if(editId){const i=DB.maintenance.findIndex(m=>m.id===editId);if(i>=0)DB.maintenance[i]={...DB.maintenance[i],...data};}
   else{data.id=Date.now();DB.maintenance.push(data);}
+  // ── ส่งไป Google Sheet ──
+  if(!editId){
+    _sendToSheet({sheetName:'Maintenance_Log',data:[data.id,data.date,data.vehicle,data.type,data.garage,data.mileage,data.cost,data.status,data.nextDate,data.details,new Date().toISOString()]},
+      'บันทึกการบำรุงรักษาเรียบร้อยแล้ว!', null);
+  }
   closeModal();navigateTo('maintenance-records');
 }
 function editMaint(id){openMaintModal(id);}
@@ -2979,6 +2993,11 @@ function saveDriver(editId){
   const data={name:document.getElementById('dName').value,license:document.getElementById('dLicense').value,type:document.getElementById('dType').value,expiry:document.getElementById('dExpiry').value,phone:document.getElementById('dPhone').value,startDate:document.getElementById('dStart').value,status:document.getElementById('dStatus').value};
   if(editId){const i=DB.drivers.findIndex(d=>d.id===editId);if(i>=0)DB.drivers[i]={...DB.drivers[i],...data};}
   else{data.id=Date.now();DB.drivers.push(data);}
+  // ── ส่งไป Google Sheet ──
+  if(!editId){
+    _sendToSheet({sheetName:'Driver_List',data:[data.id,data.name,data.license,data.type,data.expiry,data.phone,data.startDate,data.status,new Date().toISOString()]},
+      'เพิ่มข้อมูลพนักงานขับรถเรียบร้อยแล้ว!', null);
+  }
   closeModal();navigateTo('drivers');
 }
 function editDriver(id){openDriverModal(id);}
@@ -3018,6 +3037,12 @@ function saveUser(editId){
   const data={name:document.getElementById('uuName').value,email:document.getElementById('uuEmail').value,role:document.getElementById('uuRole').value,dept:document.getElementById('uuDept').value,status:document.getElementById('uuStatus').value};
   if(editId){const i=DB.users.findIndex(u=>u.id===editId);if(i>=0)DB.users[i]={...DB.users[i],...data};}
   else{data.id=Date.now();DB.users.push(data);}
+  // ── ส่งไป Google Sheet ──
+  if(!editId){
+    const pwd=document.getElementById('uuPwd')?.value||'';
+    _sendToSheet({sheetName:'System_Users',data:[data.id,data.name,data.email,pwd,data.role,data.dept,data.status,new Date().toISOString()]},
+      'เพิ่มผู้ใช้งานเรียบร้อยแล้ว!', null);
+  }
   closeModal();navigateTo('users');
 }
 function editUser(id){openUserModal(id);}
@@ -3056,7 +3081,14 @@ function submitFuel(){
   const v=document.getElementById('fVehicle').value,dt=document.getElementById('fDate').value;
   if(!v||!dt)return;
   const l=+document.getElementById('fLiters').value||0,p=+document.getElementById('fPrice').value||0;
-  DB.fuelRecords.unshift({id:Date.now(),date:dt,vehicle:v,driver:document.getElementById('fDriver').value,liters:l,pricePerLiter:p,total:l*p,mileage:+document.getElementById('fMileage').value||0,efficiency:8.32});
+  const driver=document.getElementById('fDriver').value;
+  const mileage=+document.getElementById('fMileage').value||0;
+  const note=document.getElementById('fNote').value||'';
+  const id=Date.now();
+  DB.fuelRecords.unshift({id,date:dt,vehicle:v,driver,liters:l,pricePerLiter:p,total:l*p,mileage,efficiency:8.32});
+  // ── ส่งไป Google Sheet ──
+  _sendToSheet({sheetName:'Fuel_Log',data:[id,dt,v,driver,l,p,l*p,mileage,'',note,new Date().toISOString()]},
+    'บันทึกการเติมน้ำมันเรียบร้อยแล้ว!', null);
   const s=document.getElementById('fuelOk');if(s){s.classList.remove('hidden');setTimeout(()=>s.classList.add('hidden'),3000);}
   document.getElementById('fuelForm').reset();
   navigateTo('fuel');
@@ -3137,6 +3169,28 @@ lucide.createIcons();
 // ✅ กำหนด URL ตรงนี้ที่เดียว ทุกฟังก์ชันใช้ร่วมกันได้เลย
 const webAppUrl = "https://script.google.com/macros/s/AKfycbzkOLh45upSc8yDfgrSivjH9QvdFmPIeVTZsiiI23hF6YDVycKPSQ4jqTeEYQdwfc0zUg/exec";
 
+// ── ฟังก์ชันกลางสำหรับส่งข้อมูลไป Google Apps Script (no-cors สำหรับ GitHub Pages) ──
+function _sendToSheet(payload, successMsg, resetFormId, extraOnSuccess) {
+  fetch(webAppUrl, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  })
+  .then(() => {
+    alert("🎉 " + successMsg);
+    if (resetFormId) {
+      const form = document.getElementById(resetFormId);
+      if (form) form.reset();
+    }
+    if (typeof extraOnSuccess === 'function') extraOnSuccess();
+  })
+  .catch(error => {
+    console.error("Error:", error);
+    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กการเชื่อมต่ออินเทอร์เน็ต");
+  });
+}
+
 window.saveBooking = function(editId) {
   // ── ดึงค่าจากฟอร์ม ──────────────────────────────────────────────
   const dateValue       = document.getElementById('bDate')?.value        || new Date().toISOString().slice(0,10);
@@ -3179,27 +3233,10 @@ window.saveBooking = function(editId) {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if(result.success) {
-      alert("🎉 บันทึกข้อมูลลง Google Sheet และเตือนเข้า Telegram เรียบร้อยแล้ว!");
-      if(typeof closeModal === 'function') closeModal('bookingModal');
-      if(typeof renderApp === 'function') { activeTab = 'bookings'; renderApp(); }
-    } else {
-      alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + result.error);
-    }
-  })
-  .catch(error => {
-    console.error("Error:", error);
-    alert("❌ ไม่สามารถเชื่อมต่อหลังบ้านได้");
+  // 3. ยิงข้อมูลไปที่ Google Apps Script
+  _sendToSheet(payload, "บันทึกข้อมูลลง Google Sheet และเตือนเข้า Telegram เรียบร้อยแล้ว!", null, function() {
+    if(typeof closeModal === 'function') closeModal('bookingModal');
+    if(typeof renderApp === 'function') { activeTab = 'bookings'; renderApp(); }
   });
 };
 function saveVehicleMaster() {
@@ -3246,27 +3283,7 @@ function saveVehicleMaster() {
     ]
   };
 
- // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 เพิ่มข้อมูลยานพาหนะคันใหม่เข้าระบบสำเร็จแล้ว!");
-      document.getElementById('vehicleMasterForm')?.reset(); // ล้างฟอร์ม
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "เพิ่มข้อมูลยานพาหนะคันใหม่เข้าระบบสำเร็จแล้ว!", 'vehicleMasterForm');
 }
 function saveMaintenanceLog() {
   // 1. ดึงค่าจากช่องอินพุตของหน้าบันทึกซ่อมบำรุง (อิงตามรูป image_f2d269.png)
@@ -3299,27 +3316,7 @@ function saveMaintenanceLog() {
     ]
   };
 
- // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 บันทึกประวัติการบำรุงรักษารถเรียบร้อยแล้ว!");
-      document.getElementById('maintenanceForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "บันทึกประวัติการบำรุงรักษารถเรียบร้อยแล้ว!", 'maintenanceForm');
 }
 function saveDriverList() {
   // 1. ดึงค่าจากช่องอินพุตของหน้าเพิ่มพนักงานขับรถ (อิงตามรูป image_f2cbfc.png)
@@ -3348,27 +3345,7 @@ function saveDriverList() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 เพิ่มข้อมูลพนักงานขับรถคนใหม่เรียบร้อยแล้ว!");
-      document.getElementById('driverForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "เพิ่มข้อมูลพนักงานขับรถคนใหม่เรียบร้อยแล้ว!", 'driverForm');
 }
 function saveSystemUser() {
   // 1. ดึงค่าจากหน้าฟอร์มเพิ่มผู้ใช้งาน
@@ -3395,27 +3372,7 @@ function saveSystemUser() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-   headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 เพิ่มบัญชีผู้ใช้งานใหม่เข้าสู่ระบบเรียบร้อยแล้ว!");
-      document.getElementById('userForm')?.reset(); // ล้างฟอร์ม
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "เพิ่มบัญชีผู้ใช้งานใหม่เข้าสู่ระบบเรียบร้อยแล้ว!", 'userForm');
 }
 function saveFuelLog() {
   // 1. ดึงค่าจากช่องอินพุตของหน้าฟอร์มบันทึกการเติมน้ำมัน (อิงตามรูป image_f2c760.png)
@@ -3449,27 +3406,7 @@ function saveFuelLog() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 บันทึกประวัติการเติมน้ำมันเรียบร้อยแล้ว!");
-      document.getElementById('fuelForm')?.reset(); // ล้างฟอร์มเมื่อบันทึกสำเร็จ
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "บันทึกประวัติการเติมน้ำมันเรียบร้อยแล้ว!", 'fuelForm');
 }
 function saveSystemConfig() {
   // 1. ดึงค่าจากหน้าฟอร์มตั้งค่าระบบ (System_Config)
@@ -3500,27 +3437,7 @@ function saveSystemConfig() {
     ]
   };
 
- // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-   headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 บันทึกการตั้งค่าระบบยานพาหนะเรียบร้อยแล้ว!");
-      document.getElementById('configForm')?.reset(); // ล้างฟอร์มเมื่อสำเร็จ
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "บันทึกการตั้งค่าระบบยานพาหนะเรียบร้อยแล้ว!", 'configForm');
 }
 function saveInspectionLog() {
   // 1. ดึงข้อมูลพื้นฐานส่วนบน
@@ -3618,27 +3535,7 @@ function saveInspectionLog() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 บันทึกผลการตรวจสภาพรถเรียบร้อยแล้ว! ขอบคุณที่ร่วมรักษาความปลอดภัยครับ");
-      document.getElementById('inspectionForm')?.reset(); // ล้างฟอร์ม
-    } else {
-      alert("❌ เกิดข้อผิดพลาด: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ไม่สามารถส่งข้อมูลได้ กรุณาเช็กลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "บันทึกผลการตรวจสภาพรถเรียบร้อยแล้ว! ขอบคุณที่ร่วมรักษาความปลอดภัยครับ", 'inspectionForm');
 }
 
 // 💡 ฟังก์ชันช่วยดึงค่าจากกลุ่มปุ่มกด (ปกติ / ไม่ปกติ / ซ่อมด่วน)
@@ -3677,27 +3574,7 @@ function saveGPSLog() {
     ]
   };
 
-  // 3. ยิงข้อมูลไปที่ Google Web App
-  fetch(webAppUrl, {
-    method: "POST",
-    headers: {
-  "Content-Type": "application/json"
-   },
-    body: JSON.stringify(payload)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.success) {
-      alert("🎉 บันทึกข้อมูลและพิกัด GPS เรียบร้อยแล้วค่ะ!");
-      document.getElementById('gpsForm')?.reset(); // ล้างข้อมูลในฟอร์มออกให้พร้อมกรอกใหม่
-    } else {
-      alert("❌ เกิดข้อผิดพลาดจากระบบหลังบ้าน: " + result.error);
-    }
-  })
-  .catch(error => {
-    alert("❌ ส่งข้อมูลไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือลิงก์ Web App URL");
-    console.error("Error:", error);
-  });
+  _sendToSheet(payload, "บันทึกข้อมูลและพิกัด GPS เรียบร้อยแล้วค่ะ!", 'gpsForm');
 }
   </script>
 </body>
