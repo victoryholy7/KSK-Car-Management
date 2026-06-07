@@ -1658,17 +1658,19 @@ function submitInspection(){
   const urgentItems=[], abnormalItems=[], failItems=[];
   const allSections = [...INSP_SECTIONS, ...REF_SECTIONS];
   Object.entries(inspState).forEach(([key,val])=>{
-    const [secId, idx] = key.split('_');
+    const lastU = key.lastIndexOf('_');
+    const secId = key.substring(0, lastU);
+    const idx   = +key.substring(lastU + 1);
     const sec = allSections.find(s=>s.id===secId);
-    const itemName = sec ? (sec.label+': '+sec.items[+idx]) : key;
+    const itemName = sec ? (sec.label+': '+sec.items[idx]) : key;
     if(val==='urgent')   urgentItems.push(itemName);
     if(val==='abnormal') abnormalItems.push(itemName);
   });
   Object.entries(refState).forEach(([key,val])=>{
-    const parts = key.split('_');
-    const secId = parts.slice(0,-1).join('_');
-    const idx   = +parts[parts.length-1];
-    const sec   = allSections.find(s=>s.id===secId);
+    const lastU = key.lastIndexOf('_');
+    const secId = key.substring(0, lastU);
+    const idx   = +key.substring(lastU + 1);
+    const sec = allSections.find(s=>s.id===secId);
     const itemName = sec ? (sec.label+': '+sec.items[idx]) : key;
     if(val==='no') failItems.push(itemName);
   });
