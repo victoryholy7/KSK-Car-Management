@@ -2828,10 +2828,10 @@ function saveVehicle(editId){
   // ── ส่งไป Google Sheet ──
   if(!editId){
     _sendToSheet({sheetName:'Vehicle_Master',data:[data.id,data.plate,data.brand,data.model,data.type,data.color,data.year,data.mileage,data.fuel,data.seats,data.status,data.isAmbulance?'ใช่':'ไม่ใช่',data.insurance,data.insuranceExpiry,data.taxExpiry,data.gpsEnabled?'เปิด':'ปิด',data.gpsDeviceId,data.gpsProvider,data.gpsSimNo,data.gpsInstallDate,data.gpsLat,data.gpsLng,data.gpsLocation,data.gpsSignal,data.gpsRemark,new Date().toISOString()]},
-      'บันทึกข้อมูลยานพาหนะเรียบร้อยแล้ว!', null);
+      'บันทึกข้อมูลยานพาหนะเรียบร้อยแล้ว!', null, function(){ closeModal();navigateTo('manage-vehicles');showToast('บันทึกข้อมูลยานพาหนะเรียบร้อย'); });
+  } else {
+    closeModal();navigateTo('manage-vehicles');showToast('บันทึกข้อมูลยานพาหนะเรียบร้อย');
   }
-  closeModal();navigateTo('manage-vehicles');
-  showToast('บันทึกข้อมูลยานพาหนะเรียบร้อย');
 }
 function editVehicle(id){openAddVehicleModal(id);}
 function deleteVehicle(id){if(confirm('ยืนยันลบ?')){DB.vehicles=DB.vehicles.filter(v=>v.id!==id);navigateTo('manage-vehicles');}}
@@ -2937,9 +2937,10 @@ function saveMaint(editId){
   // ── ส่งไป Google Sheet ──
   if(!editId){
     _sendToSheet({sheetName:'Maintenance_Log',data:[data.id,data.date,data.vehicle,data.type,data.garage,data.mileage,data.cost,data.status,data.nextDate,data.details,new Date().toISOString()]},
-      'บันทึกการบำรุงรักษาเรียบร้อยแล้ว!', null);
+      'บันทึกการบำรุงรักษาเรียบร้อยแล้ว!', null, function(){ closeModal();navigateTo('maintenance-records'); });
+  } else {
+    closeModal();navigateTo('maintenance-records');
   }
-  closeModal();navigateTo('maintenance-records');
 }
 function editMaint(id){openMaintModal(id);}
 
@@ -2996,9 +2997,10 @@ function saveDriver(editId){
   // ── ส่งไป Google Sheet ──
   if(!editId){
     _sendToSheet({sheetName:'Driver_List',data:[data.id,data.name,data.license,data.type,data.expiry,data.phone,data.startDate,data.status,new Date().toISOString()]},
-      'เพิ่มข้อมูลพนักงานขับรถเรียบร้อยแล้ว!', null);
+      'เพิ่มข้อมูลพนักงานขับรถเรียบร้อยแล้ว!', null, function(){ closeModal();navigateTo('drivers'); });
+  } else {
+    closeModal();navigateTo('drivers');
   }
-  closeModal();navigateTo('drivers');
 }
 function editDriver(id){openDriverModal(id);}
 function deleteDriver(id){if(confirm('ยืนยันลบ?')){DB.drivers=DB.drivers.filter(d=>d.id!==id);navigateTo('drivers');}}
@@ -3041,9 +3043,10 @@ function saveUser(editId){
   if(!editId){
     const pwd=document.getElementById('uuPwd')?.value||'';
     _sendToSheet({sheetName:'System_Users',data:[data.id,data.name,data.email,pwd,data.role,data.dept,data.status,new Date().toISOString()]},
-      'เพิ่มผู้ใช้งานเรียบร้อยแล้ว!', null);
+      'เพิ่มผู้ใช้งานเรียบร้อยแล้ว!', null, function(){ closeModal();navigateTo('users'); });
+  } else {
+    closeModal();navigateTo('users');
   }
-  closeModal();navigateTo('users');
 }
 function editUser(id){openUserModal(id);}
 function deleteUser(id){if(confirm('ยืนยันลบ?')){DB.users=DB.users.filter(u=>u.id!==id);navigateTo('users');}}
