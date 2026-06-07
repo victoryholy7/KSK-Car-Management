@@ -2042,10 +2042,10 @@ function renderSettingsTab(tab){
         `<div class="flex items-center gap-3">${toggleSwitch('s_notifyEmail', s.notifyEmail)}</div>`,'mail','text-brand-info')}
       ${settingRow('อีเมลผู้รับ','อีเมลที่จะได้รับการแจ้งเตือนทั้งหมด',
         `<input type="email" id="s_notifyEmailAddr" value="${s.notifyEmailAddress}" class="input-field" style="min-width:220px">`,'at-sign','text-sidebar-text')}
-      ${settingRow('แจ้งเตือนผ่าน LINE OA','เชื่อมต่อ LINE Official Account',
+      ${settingRow('แจ้งเตือนผ่าน Telegram','เชื่อมต่อ Telegram Bot',
         `<div class="flex items-center gap-3">${toggleSwitch('s_notifyLine', s.notifyLineOA)}</div>`,'message-circle','text-green-400')}
-      ${settingRow('LINE OA Token','Token สำหรับส่งข้อความผ่าน LINE Messaging API',
-        `<input type="text" id="s_lineToken" value="${s.lineOAToken}" placeholder="Bearer xxxxxxxx..." class="input-field" style="min-width:220px">`,'key','text-sidebar-text')}
+      ${settingRow('Telegram Token','Token สำหรับส่งข้อความผ่าน Telegram',
+        `<input type="text" id="s_TelegramToken" value="${s.TelegramToken}" placeholder="Bearer xxxxxxxx..." class="input-field" style="min-width:220px">`,'key','text-sidebar-text')}
       <div class="pt-2"></div>
       <h4 class="font-bold text-sm text-sidebar-textLight pt-2 mb-2 flex items-center gap-2"><i data-lucide="bell-off" class="w-4 h-4"></i>การแจ้งเตือนอื่นๆ</h4>
       ${settingRow('แจ้งเตือนถึงกำหนดบำรุงรักษา','แจ้งเมื่อรถถึงกำหนดเข้าอู่',
