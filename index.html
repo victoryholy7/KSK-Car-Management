@@ -3171,6 +3171,7 @@ const webAppUrl = "https://script.google.com/macros/s/AKfycbzkOLh45upSc8yDfgrSiv
 
 // ── ฟังก์ชันกลางสำหรับส่งข้อมูลไป Google Apps Script (no-cors สำหรับ GitHub Pages) ──
 function _sendToSheet(payload, successMsg, resetFormId, extraOnSuccess) {
+  console.log("📤 กำลังส่งไป Google Sheet:", payload.sheetName, payload.data);
   fetch(webAppUrl, {
     method: "POST",
     mode: "no-cors",
@@ -3178,6 +3179,7 @@ function _sendToSheet(payload, successMsg, resetFormId, extraOnSuccess) {
     body: JSON.stringify(payload)
   })
   .then(() => {
+    console.log("✅ ส่งสำเร็จแล้ว:", payload.sheetName);
     alert("🎉 " + successMsg);
     if (resetFormId) {
       const form = document.getElementById(resetFormId);
