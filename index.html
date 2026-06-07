@@ -1667,9 +1667,11 @@ function submitInspection(){
     if(val==='abnormal') abnormalItems.push(itemName);
   });
   Object.entries(refState).forEach(([key,val])=>{
-    const lastU = key.lastIndexOf('_');
-    const secId = key.substring(0, lastU);
-    const idx   = +key.substring(lastU + 1);
+    // key รูปแบบ: ref_${secId}_${idx} เช่น ref_ref_oxy_0
+    const withoutPrefix = key.startsWith('ref_') ? key.slice(4) : key; // ตัด 'ref_' นำหน้าออก
+    const lastU = withoutPrefix.lastIndexOf('_');
+    const secId = withoutPrefix.substring(0, lastU); // เช่น ref_oxy
+    const idx   = +withoutPrefix.substring(lastU + 1);
     const sec = allSections.find(s=>s.id===secId);
     const itemName = sec ? (sec.label+': '+sec.items[idx]) : key;
     if(val==='no') failItems.push(itemName);
