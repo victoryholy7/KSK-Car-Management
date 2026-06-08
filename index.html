@@ -1248,8 +1248,9 @@ let systemSettings = {
   notifyTaxDays: 30,
   notifyMaintenanceDue: true,
   notifyFuelLow: false,
-  notifyLineOA: false,
-  lineOAToken: '',
+  notifyTelegram: false,
+  telegramToken: '7303854687:AAFYpn8lhdRRByU8jUnkMkUQTTeaQtKlZ-4',
+  telegramChatId: '-1002572833314',
   notifyEmail: true,
   notifyEmailAddress: 'admin@ksk.co.th',
   // Inspection
@@ -2043,9 +2044,11 @@ function renderSettingsTab(tab){
       ${settingRow('อีเมลผู้รับ','อีเมลที่จะได้รับการแจ้งเตือนทั้งหมด',
         `<input type="email" id="s_notifyEmailAddr" value="${s.notifyEmailAddress}" class="input-field" style="min-width:220px">`,'at-sign','text-sidebar-text')}
       ${settingRow('แจ้งเตือนผ่าน Telegram','เชื่อมต่อ Telegram Bot',
-        `<div class="flex items-center gap-3">${toggleSwitch('s_notifyLine', s.notifyLineOA)}</div>`,'message-circle','text-green-400')}
-      ${settingRow('Telegram Token','Token สำหรับส่งข้อความผ่าน Telegram',
-        `<input type="text" id="s_TelegramToken" value="${s.TelegramToken}" placeholder="Bearer xxxxxxxx..." class="input-field" style="min-width:220px">`,'key','text-sidebar-text')}
+        `<div class="flex items-center gap-3">${toggleSwitch('s_notifyTelegram', s.notifyTelegram||false)}</div>`,'send','text-blue-400')}
+      ${settingRow('Telegram Bot Token','Token ของ Telegram Bot (ได้จาก @BotFather)',
+        `<input type="text" id="s_telegramToken" value="${s.telegramToken||''||''}" placeholder="7303854687:AAFYpn8..." class="input-field" style="min-width:220px">`,'key','text-sidebar-text')}
+      ${settingRow('Telegram Chat ID','ID ของกลุ่มหรือช่องที่ต้องการรับการแจ้งเตือน',
+        `<input type="text" id="s_telegramChatId" value="${s.telegramChatId||''||'-1002572833314'}" placeholder="-1002572833314" class="input-field" style="min-width:220px">`,'hash','text-sidebar-text')}
       <div class="pt-2"></div>
       <h4 class="font-bold text-sm text-sidebar-textLight pt-2 mb-2 flex items-center gap-2"><i data-lucide="bell-off" class="w-4 h-4"></i>การแจ้งเตือนอื่นๆ</h4>
       ${settingRow('แจ้งเตือนถึงกำหนดบำรุงรักษา','แจ้งเมื่อรถถึงกำหนดเข้าอู่',
@@ -2130,14 +2133,14 @@ function renderSettingsTab(tab){
                 </div>
               </div>
               <button onclick="exportData('${d.key}')" class="px-3 py-1.5 bg-brand-primary/20 hover:bg-brand-primary/40 text-brand-primaryLight rounded-lg text-xs font-semibold transition flex items-center gap-1">
-                <i data-lucide="download" class="w-3 h-3"></i>JSON
+                <i data-lucide="download" class="w-3 h-3"></i><i data-lucide="table" class="w-3 h-3"></i>Excel
               </button>
             </div>
           `).join('')}
         </div>
         <div class="mt-4 pt-4 border-t border-sidebar-border">
           <button onclick="exportAllData()" class="w-full py-3 bg-brand-success/10 hover:bg-brand-success/20 border border-brand-success/30 text-brand-success rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition">
-            <i data-lucide="package" class="w-4 h-4"></i>ดาวน์โหลดข้อมูลทั้งหมด (JSON)
+            <i data-lucide="package" class="w-4 h-4"></i>ดาวน์โหลดข้อมูลทั้งหมด (Excel)
           </button>
         </div>
       </div>
@@ -2216,7 +2219,9 @@ function saveSettings(){
     const ni=getChk('s_notifyIns'); if(ni!==null) systemSettings.notifyInsuranceExpiry=ni;
     const nt=getChk('s_notifyTax'); if(nt!==null) systemSettings.notifyTaxExpiry=nt;
     const ne=getChk('s_notifyEmail'); if(ne!==null) systemSettings.notifyEmail=ne;
-    const nl=getChk('s_notifyLine'); if(nl!==null) systemSettings.notifyLineOA=nl;
+    const nl=getChk('s_notifyTelegram'); if(nl!==null) systemSettings.notifyTelegram=nl;
+    if(get('s_telegramToken')) systemSettings.telegramToken=get('s_telegramToken');
+    if(get('s_telegramChatId')) systemSettings.telegramChatId=get('s_telegramChatId');
     const nm=getChk('s_notifyMaint'); if(nm!==null) systemSettings.notifyMaintenanceDue=nm;
     const nf=getChk('s_notifyFuel'); if(nf!==null) systemSettings.notifyFuelLow=nf;
     if(get('s_notifyInsDays')) systemSettings.notifyInsuranceDays=+get('s_notifyInsDays');
@@ -2280,30 +2285,60 @@ function exportData(key){
     drivers: DB.drivers, insp: DB.inspections
   };
   const data = map[key] || [];
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  if(!data.length){ showToast('ไม่มีข้อมูล'); return; }
+  // แปลงเป็น CSV (Excel อ่านได้)
+  const headers = Object.keys(data[0]);
+  const rows = [headers.join(',')];
+  data.forEach(row => {
+    rows.push(headers.map(h => {
+      let v = row[h] ?? '';
+      if(typeof v === 'string' && (v.includes(',') || v.includes('"') || v.includes('\n')))
+        v = '"' + v.replace(/"/g, '""') + '"';
+      return v;
+    }).join(','));
+  });
+  const bom = '\uFEFF'; // BOM สำหรับ Excel อ่านภาษาไทยได้
+  const blob = new Blob([bom + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `KSK_${key}_${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `KSK_${key}_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
-  showToast(`ดาวน์โหลด ${key} เรียบร้อย`);
+  showToast(`ดาวน์โหลด ${key} เป็น Excel เรียบร้อย`);
 }
 
 function exportAllData(){
-  const all = {
-    exportDate: new Date().toISOString(),
-    system: systemSettings,
-    data: {
-      vehicles: DB.vehicles, usageRecords: DB.usageRecords,
-      fuelRecords: DB.fuelRecords, maintenance: DB.maintenance,
-      drivers: DB.drivers, users: DB.users, inspections: DB.inspections
-    }
-  };
-  const blob = new Blob([JSON.stringify(all, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `KSK_SmartDrive_Backup_${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  showToast('ดาวน์โหลดข้อมูลทั้งหมดเรียบร้อย');
+  // Export แต่ละประเภทเป็น CSV แยกไฟล์
+  const datasets = [
+    {key:'vehicles', label:'ยานพาหนะ', data: DB.vehicles},
+    {key:'usage', label:'การใช้รถ', data: DB.usageRecords},
+    {key:'fuel', label:'น้ำมัน', data: DB.fuelRecords},
+    {key:'maint', label:'ซ่อมบำรุง', data: DB.maintenance},
+    {key:'drivers', label:'พนักงาน', data: DB.drivers},
+    {key:'insp', label:'ตรวจสภาพ', data: DB.inspections},
+  ];
+  const date = new Date().toISOString().split('T')[0];
+  let count = 0;
+  datasets.forEach(({key, label, data}) => {
+    if(!data || !data.length) return;
+    const headers = Object.keys(data[0]);
+    const rows = [headers.join(',')];
+    data.forEach(row => {
+      rows.push(headers.map(h => {
+        let v = row[h] ?? '';
+        if(typeof v === 'string' && (v.includes(',') || v.includes('"') || v.includes('\n')))
+          v = '"' + v.replace(/"/g, '""') + '"';
+        return v;
+      }).join(','));
+    });
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `KSK_${label}_${date}.csv`;
+    setTimeout(() => a.click(), count * 300); // delay เพื่อไม่ให้ browser บล็อก
+    count++;
+  });
+  showToast(`ดาวน์โหลด ${count} ไฟล์ Excel เรียบร้อย`);
 }
 
 function confirmClearData(type){
