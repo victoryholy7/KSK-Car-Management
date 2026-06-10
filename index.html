@@ -1113,7 +1113,7 @@ img,video{max-width:100%;height:auto}
 <div id="loginPage" class="login-page">
   <div class="login-card fade-in">
     <div class="text-center mb-8">
-      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center font-bold text-xl mx-auto mb-4">KSD</div>
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center font-bold text-xl mx-auto mb-4">VBS</div>
       <h1 class="text-2xl font-bold text-white">KSK Smart Drive</h1>
       <p class="text-sidebar-text text-sm mt-1">ระบบบริหารจัดการยานพาหนะโรงพยาบาลเขาสุกิม</p>
     </div>
@@ -2387,188 +2387,124 @@ function renderHome(){
   </div>`;
 }
 
-// ═══════════ FUEL STATS HELPERS ═══════════
-let _fuelStatsMonth = null; // null = current month
-
-function _getFuelStatsMonth(){
-  if(_fuelStatsMonth) return _fuelStatsMonth;
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-}
-
-function _buildFuelMonthOptions(){
-  // Collect all months present in fuelRecords + last 12 months
+function getFuelMonthOptions(){
+  // รวบรวมเดือนที่มีข้อมูลจาก fuelRecords
   const months = new Set();
-  DB.fuelRecords.forEach(r=>{ if(r.date) months.add(r.date.substring(0,7)); });
   const now = new Date();
+  // เพิ่มเดือนปัจจุบัน + 11 เดือนก่อนหน้าเสมอ
   for(let i=0;i<12;i++){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    months.add(d.getFullYear()+'-'+ String(d.getMonth()+1).padStart(2,'0'));
   }
+  DB.fuelRecords.forEach(r=>{
+    if(r.date) months.add(r.date.slice(0,7));
+  });
   return [...months].sort((a,b)=>b.localeCompare(a));
 }
 
-function _thMonth(ym){ // "2025-01" → "ม.ค. 68"
+function getFuelStatsForMonth(ym){
+  // ym = "YYYY-MM"
+  const records = DB.fuelRecords.filter(r=>r.date && r.date.slice(0,7)===ym);
+  const stats = {};
+  DB.vehicles.forEach(v=>{ stats[v.plate]={liters:0,total:0,count:0,brand:v.brand,model:v.model,isAmbulance:v.isAmbulance,status:v.status}; });
+  records.forEach(r=>{
+    if(!stats[r.vehicle]) stats[r.vehicle]={liters:0,total:0,count:0,brand:'',model:'',isAmbulance:false,status:''};
+    stats[r.vehicle].liters += r.liters||0;
+    stats[r.vehicle].total  += r.total||0;
+    stats[r.vehicle].count++;
+  });
+  return stats;
+}
+
+function thMonthLabel(ym){
   const [y,m] = ym.split('-');
-  const thM=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-  return thM[+m]+' '+(+y-1957);
-}
-
-function changeFuelMonth(val){
-  _fuelStatsMonth = val;
-  // Re-render only the fuel stats section
-  const el = document.getElementById('fuelStatsSection');
-  if(!el) return;
-  el.outerHTML = _renderFuelStatsSection();
-  lucide.createIcons();
-  setTimeout(initFuelStatsCharts,80);
-}
-
-function _renderFuelStatsSection(){
-  const selMonth = _getFuelStatsMonth();
-  const allMonths = _buildFuelMonthOptions();
-  const monthOpts = allMonths.map(m=>`<option value="${m}" ${m===selMonth?'selected':''}>${_thMonth(m)}</option>`).join('');
-
-  // Filter records for selected month
-  const recs = DB.fuelRecords.filter(r=>r.date && r.date.substring(0,7)===selMonth);
-
-  // Per vehicle totals
-  const byVehicle = {};
-  DB.vehicles.forEach(v=>{ byVehicle[v.plate]={plate:v.plate,name:v.brand+' '+v.model,liters:0,cost:0,times:0,isAmb:v.isAmbulance}; });
-  recs.forEach(r=>{
-    if(!byVehicle[r.vehicle]) byVehicle[r.vehicle]={plate:r.vehicle,name:r.vehicle,liters:0,cost:0,times:0,isAmb:false};
-    byVehicle[r.vehicle].liters += r.liters||0;
-    byVehicle[r.vehicle].cost  += r.total||0;
-    byVehicle[r.vehicle].times += 1;
-  });
-  const vehicleStats = Object.values(byVehicle).filter(v=>v.times>0||DB.vehicles.find(x=>x.plate===v.plate));
-  const totalLiters = vehicleStats.reduce((s,v)=>s+v.liters,0);
-  const totalCost   = vehicleStats.reduce((s,v)=>s+v.cost,0);
-  const totalTimes  = vehicleStats.reduce((s,v)=>s+v.times,0);
-
-  // Last 6 months trend
-  const last6 = allMonths.slice(0,6).reverse();
-  const trend6 = last6.map(mo=>{
-    const r = DB.fuelRecords.filter(x=>x.date&&x.date.substring(0,7)===mo);
-    return r.reduce((s,x)=>s+(x.liters||0),0);
-  });
-
-  const tableRows = vehicleStats.map(v=>`<tr class="hover:bg-sidebar-hover/30 transition">
-    <td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmb?' 🚑':''}</td>
-    <td class="pr-3 text-sidebar-textLight">${v.name}</td>
-    <td class="pr-3 font-bold text-brand-info">${v.liters.toFixed(1)} ล.</td>
-    <td class="pr-3 font-semibold text-brand-accent">${v.cost.toLocaleString()} ฿</td>
-    <td class="pr-3 text-sidebar-textLight">${v.times} ครั้ง</td>
-    <td class="text-sidebar-text">${v.times>0&&v.cost>0?(v.cost/v.liters).toFixed(2)+' ฿/ล.':'—'}</td>
-  </tr>`).join('');
-
-  return `<div id="fuelStatsSection" class="space-y-5">
-    <div class="stat-card rounded-2xl p-5">
-      <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-        <h4 class="font-semibold flex items-center gap-2 text-sm"><i data-lucide="droplets" class="w-4 h-4 text-brand-info"></i>ปริมาณน้ำมันแต่ละคัน (ลิตร)</h4>
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-sidebar-text">เดือน:</span>
-          <select class="input-field text-xs py-1 px-2" style="width:auto" onchange="changeFuelMonth(this.value)">${monthOpts}</select>
-        </div>
-      </div>
-      <div class="grid grid-cols-3 gap-3 mb-5">
-        <div class="bg-sidebar-hover/50 rounded-xl p-3 text-center">
-          <p class="text-[10px] text-sidebar-text mb-1">ปริมาณรวม</p>
-          <p class="text-lg font-bold text-brand-info">${totalLiters.toFixed(1)} <span class="text-xs font-normal text-sidebar-text">ล.</span></p>
-        </div>
-        <div class="bg-sidebar-hover/50 rounded-xl p-3 text-center">
-          <p class="text-[10px] text-sidebar-text mb-1">ค่าน้ำมันรวม</p>
-          <p class="text-lg font-bold text-brand-warn">${totalCost.toLocaleString()} <span class="text-xs font-normal text-sidebar-text">฿</span></p>
-        </div>
-        <div class="bg-sidebar-hover/50 rounded-xl p-3 text-center">
-          <p class="text-[10px] text-sidebar-text mb-1">จำนวนครั้ง</p>
-          <p class="text-lg font-bold text-brand-accent">${totalTimes} <span class="text-xs font-normal text-sidebar-text">ครั้ง</span></p>
-        </div>
-      </div>
-      <div class="grid lg:grid-cols-2 gap-4 mb-5">
-        <div><h5 class="text-xs text-sidebar-text font-semibold mb-2">ปริมาณ (ลิตร) รายคัน — ${_thMonth(selMonth)}</h5><div style="height:200px"><canvas id="fuelBarChart"></canvas></div></div>
-        <div><h5 class="text-xs text-sidebar-text font-semibold mb-2">แนวโน้มปริมาณน้ำมัน 6 เดือนย้อนหลัง (ลิตร)</h5><div style="height:200px"><canvas id="fuelTrendChart"></canvas></div></div>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-[12px]">
-          <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
-            <th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">ยี่ห้อ/รุ่น</th>
-            <th class="pb-3 pr-3">ปริมาณ (ลิตร)</th><th class="pb-3 pr-3">ค่าน้ำมัน</th>
-            <th class="pb-3 pr-3">เติม (ครั้ง)</th><th class="pb-3">ราคาเฉลี่ย</th>
-          </tr></thead>
-          <tbody class="divide-y divide-sidebar-border/30">${tableRows||'<tr><td colspan="6" class="py-6 text-center text-sidebar-text text-xs">ไม่มีข้อมูลเดือนนี้</td></tr>'}</tbody>
-          <tfoot><tr class="border-t border-sidebar-border">
-            <td colspan="2" class="py-3 text-right font-semibold text-sidebar-textLight pr-3">รวม</td>
-            <td class="py-3 font-bold text-brand-info">${totalLiters.toFixed(1)} ล.</td>
-            <td class="py-3 font-bold text-brand-warn">${totalCost.toLocaleString()} ฿</td>
-            <td class="py-3 font-bold text-brand-accent">${totalTimes} ครั้ง</td>
-            <td></td>
-          </tr></tfoot>
-        </table>
-      </div>
-    </div>
-    <!-- hidden data for charts -->
-    <script id="fuelChartData" type="application/json">${JSON.stringify({
-      vehicles: vehicleStats.map(v=>v.plate+(v.isAmb?' 🚑':'')),
-      liters:   vehicleStats.map(v=>+v.liters.toFixed(1)),
-      trend6Labels: last6.map(_thMonth),
-      trend6Data: trend6
-    })}<\/script>
-  </div>`;
-}
-
-function initFuelStatsCharts(){
-  const raw = document.getElementById('fuelChartData');
-  if(!raw) return;
-  let d;
-  try{ d=JSON.parse(raw.textContent); }catch(e){ return; }
-  const gc2='rgba(42,45,58,0.5)';
-  const bOpts2={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
-
-  const bc=document.getElementById('fuelBarChart');
-  if(bc){
-    if(bc._chartInst) bc._chartInst.destroy();
-    bc._chartInst=new Chart(bc,{type:'bar',data:{
-      labels:d.vehicles,
-      datasets:[{label:'ลิตร',data:d.liters,backgroundColor:'rgba(59,130,246,0.65)',borderRadius:8}]
-    },options:{...bOpts2,scales:{x:{ticks:{color:'#8b8fa3',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc2}}}}});
-  }
-  const tc=document.getElementById('fuelTrendChart');
-  if(tc){
-    if(tc._chartInst) tc._chartInst.destroy();
-    tc._chartInst=new Chart(tc,{type:'line',data:{
-      labels:d.trend6Labels,
-      datasets:[{label:'ลิตร',data:d.trend6Data,borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,0.12)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:'#38bdf8'}]
-    },options:{...bOpts2,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b8fa3',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc2}}}}});
-  }
+  const thMonths=['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const thY = +y+543;
+  return thMonths[+m]+' '+thY;
 }
 
 function renderDashboard(){
+  const now = new Date();
+  const curYm = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const monthOpts = getFuelMonthOptions();
+  const monthSelectHtml = monthOpts.map(ym=>`<option value="${ym}" ${ym===curYm?'selected':''}>${thMonthLabel(ym)}</option>`).join('');
+  const stats = getFuelStatsForMonth(curYm);
+  const totalLiters = Object.values(stats).reduce((s,x)=>s+x.liters,0);
+  const totalCost   = Object.values(stats).reduce((s,x)=>s+x.total,0);
+
+  const fuelRows = DB.vehicles.map(v=>{
+    const s = stats[v.plate]||{liters:0,total:0,count:0};
+    const pct = totalLiters>0 ? (s.liters/totalLiters*100).toFixed(1) : 0;
+    return `<tr class="hover:bg-sidebar-hover/30 transition">
+      <td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmbulance?' 🚑':''}</td>
+      <td class="pr-3 text-sidebar-textLight">${v.brand} ${v.model}</td>
+      <td class="pr-3 text-sidebar-textLight text-center">${s.count}</td>
+      <td class="pr-3 font-semibold text-brand-info">${s.liters.toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+      <td class="pr-3 font-semibold text-brand-accent">${s.total.toLocaleString()} ฿</td>
+      <td class="pr-3">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-sidebar-hover rounded-full h-1.5" style="min-width:60px">
+            <div class="h-1.5 rounded-full bg-brand-info" style="width:${pct}%"></div>
+          </div>
+          <span class="text-[11px] text-sidebar-text">${pct}%</span>
+        </div>
+      </td>
+      <td>${sBadge(v.status)}</td>
+    </tr>`;
+  }).join('');
+
   return `<div class="fade-in space-y-6">
     <h3 class="text-xl font-bold">📊 Executive Dashboard</h3>
-    ${_renderFuelStatsSection()}
+
+    <!-- ── สถิติน้ำมันรายเดือนแยกคัน ── -->
     <div class="stat-card rounded-2xl p-5">
-      <h4 class="font-semibold mb-4 text-sm flex items-center gap-2"><i data-lucide="car" class="w-4 h-4 text-brand-accent"></i>การใช้งานรถแต่ละคัน (เดือนนี้)</h4>
+      <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <h4 class="font-semibold text-sm flex items-center gap-2"><i data-lucide="fuel" class="w-4 h-4 text-brand-info"></i>ปริมาณการใช้น้ำมันแต่ละคัน</h4>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-sidebar-text font-semibold">เดือน:</label>
+          <select id="dashMonthSelect" class="input-field text-xs" style="max-width:140px" onchange="updateDashFuelMonth(this.value)">
+            ${monthSelectHtml}
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4" id="dashFuelSummary">
+        ${qCard('droplet','น้ำมันรวม (ลิตร)',totalLiters.toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1}),'ล.','from-brand-info/20 to-brand-info/5','text-brand-info')}
+        ${qCard('banknote','ค่าน้ำมันรวม',totalCost.toLocaleString(),'บาท','from-brand-warn/20 to-brand-warn/5','text-brand-warn')}
+      </div>
       <div class="overflow-x-auto">
-        <table class="w-full text-[12px]">
-          <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50"><th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">ยี่ห้อ/รุ่น</th><th class="pb-3 pr-3">ใช้งาน(วัน)</th><th class="pb-3 pr-3">ระยะทาง</th><th class="pb-3 pr-3">น้ำมัน(ล.)</th><th class="pb-3 pr-3">ค่าน้ำมัน</th><th class="pb-3 pr-3">กม./ล.</th><th class="pb-3">สถานะ</th></tr></thead>
-          <tbody class="divide-y divide-sidebar-border/30">${DB.vehicles.map(v=>`<tr class="hover:bg-sidebar-hover/30 transition"><td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmbulance?' 🚑':''}</td><td class="pr-3 text-sidebar-textLight">${v.brand} ${v.model}</td><td class="pr-3 text-sidebar-textLight">${Math.floor(Math.random()*18)+4}</td><td class="pr-3 text-sidebar-textLight">${Math.floor(Math.random()*450)+80} กม.</td><td class="pr-3 text-sidebar-textLight">${Math.floor(Math.random()*55)+18}</td><td class="pr-3 font-semibold text-brand-accent">${(Math.floor(Math.random()*1800)+700).toLocaleString()}</td><td class="pr-3 text-orange-400 font-semibold">${(7.6+Math.random()).toFixed(2)}</td><td>${sBadge(v.status)}</td></tr>`).join('')}</tbody>
+        <table class="w-full text-[12px]" id="dashFuelTable">
+          <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
+            <th class="pb-3 pr-3">ทะเบียน</th>
+            <th class="pb-3 pr-3">ยี่ห้อ/รุ่น</th>
+            <th class="pb-3 pr-3 text-center">ครั้ง</th>
+            <th class="pb-3 pr-3">ปริมาณ (ล.)</th>
+            <th class="pb-3 pr-3">ค่าน้ำมัน</th>
+            <th class="pb-3 pr-3">สัดส่วน</th>
+            <th class="pb-3">สถานะรถ</th>
+          </tr></thead>
+          <tbody class="divide-y divide-sidebar-border/30" id="dashFuelBody">${fuelRows}</tbody>
         </table>
       </div>
+      <div class="mt-5"><h5 class="text-xs font-semibold text-sidebar-text mb-3">กราฟเปรียบเทียบปริมาณน้ำมัน (ลิตร) แต่ละคัน</h5>
+        <div class="chart-container"><canvas id="fuelByVehicleChart"></canvas></div>
+      </div>
     </div>
+
+    <!-- ── กราฟแนวโน้มรายเดือน ── -->
+    <div class="stat-card rounded-2xl p-5">
+      <h4 class="font-semibold mb-3 text-sm flex items-center gap-2"><i data-lucide="trending-up" class="w-4 h-4 text-brand-primary"></i>แนวโน้มการใช้น้ำมัน 6 เดือนย้อนหลัง (ลิตร)</h4>
+      <div style="position:relative;height:280px"><canvas id="fuelTrendChart"></canvas></div>
+    </div>
+
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      ${qCard('truck','พร้อมใช้','18/24','คัน','from-brand-success/20 to-brand-success/5','text-brand-success')}
-      ${qCard('calendar','บันทึกเดือนนี้','156','ครั้ง','from-brand-primary/20 to-brand-primary/5','text-brand-primary')}
-      ${qCard('fuel','ค่าน้ำมันรวม','87,230','บาท','from-brand-warn/20 to-brand-warn/5','text-brand-warn')}
-      ${qCard('wrench','ซ่อมบำรุง','3','คัน','from-brand-danger/20 to-brand-danger/5','text-brand-danger')}
+      ${qCard('truck','พร้อมใช้',DB.vehicles.filter(v=>v.status==='พร้อม').length+'/'+DB.vehicles.length,'คัน','from-brand-success/20 to-brand-success/5','text-brand-success')}
+      ${qCard('calendar','บันทึกเดือนนี้',DB.usageRecords.length,'ครั้ง','from-brand-primary/20 to-brand-primary/5','text-brand-primary')}
+      ${qCard('fuel','ค่าน้ำมันรวม',DB.fuelRecords.reduce((s,r)=>s+r.total,0).toLocaleString(),'บาท','from-brand-warn/20 to-brand-warn/5','text-brand-warn')}
+      ${qCard('wrench','ซ่อมบำรุง',DB.maintenance.filter(m=>m.status==='อยู่ระหว่างซ่อม').length,'คัน','from-brand-danger/20 to-brand-danger/5','text-brand-danger')}
     </div>
     <div class="grid lg:grid-cols-2 gap-4">
       <div class="stat-card rounded-2xl p-5"><h4 class="font-semibold mb-3 text-sm">สถิติการใช้รถรายเดือน</h4><div class="chart-container"><canvas id="bookingChart"></canvas></div></div>
       <div class="stat-card rounded-2xl p-5"><h4 class="font-semibold mb-3 text-sm">สัดส่วนประเภทยานพาหนะ</h4><div class="chart-container"><canvas id="vehicleTypeChart"></canvas></div></div>
-    </div>
-    <div class="grid lg:grid-cols-2 gap-4">
-      <div class="stat-card rounded-2xl p-5"><h4 class="font-semibold mb-3 text-sm">การใช้น้ำมันรายเดือน (ลิตร)</h4><div class="chart-container"><canvas id="fuelUsageChart"></canvas></div></div>
-      <div class="stat-card rounded-2xl p-5"><h4 class="font-semibold mb-3 text-sm">อัตราสิ้นเปลืองแต่ละคัน</h4><div class="chart-container"><canvas id="efficiencyChart"></canvas></div></div>
     </div>
   </div>`;
 }
@@ -3345,15 +3281,114 @@ function navigateTo(pageId){
 // ═══════════ CHARTS ═══════════
 const bOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b8fa3',font:{size:11}}}}};
 const gc='rgba(42,45,58,0.5)';
+let _fuelByVehicleChart=null, _fuelTrendChart=null;
+
 function initDashCharts(){
+  // Booking bar chart
   const bc=document.getElementById('bookingChart');
   if(bc)new Chart(bc,{type:'bar',data:{labels:['ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.','ม.ค.'],datasets:[{label:'ครั้ง',data:[98,120,135,110,156,142],backgroundColor:'rgba(108,92,231,0.6)',borderRadius:8}]},options:{...bOpts,scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc}}}}});
+  // Vehicle type doughnut
+  const typeCounts={};
+  DB.vehicles.forEach(v=>{typeCounts[v.type]=(typeCounts[v.type]||0)+1;});
   const vc=document.getElementById('vehicleTypeChart');
-  if(vc)new Chart(vc,{type:'doughnut',data:{labels:['ตู้โดยสาร','กระบะ','SUV','รถพยาบาล','รถบรรทุก'],datasets:[{data:[2,1,1,1,1],backgroundColor:['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b']}]},options:{...bOpts}});
-  const fuc=document.getElementById('fuelUsageChart');
-  if(fuc)new Chart(fuc,{type:'bar',data:{labels:['ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.','ม.ค.'],datasets:[{label:'ลิตร',data:[1850,2100,2050,2300,2450,2200],backgroundColor:'rgba(59,130,246,0.6)',borderRadius:8}]},options:{...bOpts,scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc}}}}});
-  const ec=document.getElementById('efficiencyChart');
-  if(ec)new Chart(ec,{type:'line',data:{labels:DB.vehicles.map(v=>v.plate),datasets:[{label:'กม./ลิตร',data:[8.32,8.15,7.98,8.41,8.24],borderColor:'#fb923c',backgroundColor:'rgba(251,146,60,0.1)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#fb923c'}]},options:{...bOpts,scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc},min:7.5,max:8.5}}}});
+  if(vc)new Chart(vc,{type:'doughnut',data:{labels:Object.keys(typeCounts),datasets:[{data:Object.values(typeCounts),backgroundColor:['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b','#74b9ff']}]},options:{...bOpts}});
+
+  // ── กราฟน้ำมันแยกคัน (เดือนที่เลือก) ──
+  const selEl=document.getElementById('dashMonthSelect');
+  const ym=selEl?selEl.value:(new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0'));
+  _renderFuelByVehicleChart(ym);
+
+  // ── กราฟแนวโน้ม 6 เดือน ──
+  _renderFuelTrendChart();
+}
+
+function _renderFuelByVehicleChart(ym){
+  const stats=getFuelStatsForMonth(ym);
+  const labels=DB.vehicles.map(v=>v.plate+(v.isAmbulance?' 🚑':''));
+  const data=DB.vehicles.map(v=>(stats[v.plate]||{liters:0}).liters);
+  const colors=['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b','#74b9ff','#fd79a8','#e17055'];
+  const bgColors=DB.vehicles.map((_,i)=>colors[i%colors.length]+'99');
+  const bdColors=DB.vehicles.map((_,i)=>colors[i%colors.length]);
+  const ctx=document.getElementById('fuelByVehicleChart');
+  if(!ctx)return;
+  if(_fuelByVehicleChart){_fuelByVehicleChart.destroy();}
+  _fuelByVehicleChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'ปริมาณน้ำมัน (ลิตร)',data,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,borderRadius:8}]},
+    options:{...bOpts,plugins:{...bOpts.plugins,legend:{display:false}},scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc},beginAtZero:true,title:{display:true,text:'ลิตร',color:'#8b8fa3',font:{size:11}}}}}
+  });
+}
+
+function _renderFuelTrendChart(){
+  // แสดง 6 เดือนล่าสุด แยกเส้นแต่ละคัน
+  const now=new Date();
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  const labels=months.map(ym=>thMonthLabel(ym));
+  const palette=['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b','#74b9ff','#fd79a8','#e17055'];
+  const datasets=DB.vehicles.map((v,i)=>{
+    const color=palette[i%palette.length];
+    const data=months.map(ym=>{
+      const s=getFuelStatsForMonth(ym);
+      return (s[v.plate]||{liters:0}).liters;
+    });
+    return {label:v.plate+(v.isAmbulance?' 🚑':''),data,borderColor:color,backgroundColor:color+'22',fill:false,tension:.4,pointRadius:4,pointBackgroundColor:color};
+  });
+  const ctx=document.getElementById('fuelTrendChart');
+  if(!ctx)return;
+  if(_fuelTrendChart){_fuelTrendChart.destroy();}
+  _fuelTrendChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets},
+    options:{...bOpts,plugins:{legend:{labels:{color:'#8b8fa3',font:{size:10},boxWidth:12}}},scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc},beginAtZero:true,title:{display:true,text:'ลิตร',color:'#8b8fa3',font:{size:11}}}}}
+  });
+}
+
+function updateDashFuelMonth(ym){
+  // อัปเดตตาราง + summary cards + กราฟแยกคัน
+  const stats=getFuelStatsForMonth(ym);
+  const totalLiters=Object.values(stats).reduce((s,x)=>s+x.liters,0);
+  const totalCost=Object.values(stats).reduce((s,x)=>s+x.total,0);
+
+  // อัปเดต summary cards
+  const summaryEl=document.getElementById('dashFuelSummary');
+  if(summaryEl){
+    summaryEl.innerHTML=
+      qCard('droplet','น้ำมันรวม (ลิตร)',totalLiters.toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1}),'ล.','from-brand-info/20 to-brand-info/5','text-brand-info')+
+      qCard('banknote','ค่าน้ำมันรวม',totalCost.toLocaleString(),'บาท','from-brand-warn/20 to-brand-warn/5','text-brand-warn');
+    lucide.createIcons();
+  }
+
+  // อัปเดตตาราง
+  const tbody=document.getElementById('dashFuelBody');
+  if(tbody){
+    tbody.innerHTML=DB.vehicles.map(v=>{
+      const s=stats[v.plate]||{liters:0,total:0,count:0};
+      const pct=totalLiters>0?(s.liters/totalLiters*100).toFixed(1):0;
+      return `<tr class="hover:bg-sidebar-hover/30 transition">
+        <td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmbulance?' 🚑':''}</td>
+        <td class="pr-3 text-sidebar-textLight">${v.brand} ${v.model}</td>
+        <td class="pr-3 text-sidebar-textLight text-center">${s.count}</td>
+        <td class="pr-3 font-semibold text-brand-info">${s.liters.toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1})}</td>
+        <td class="pr-3 font-semibold text-brand-accent">${s.total.toLocaleString()} ฿</td>
+        <td class="pr-3">
+          <div class="flex items-center gap-2">
+            <div class="flex-1 bg-sidebar-hover rounded-full h-1.5" style="min-width:60px">
+              <div class="h-1.5 rounded-full bg-brand-info" style="width:${pct}%"></div>
+            </div>
+            <span class="text-[11px] text-sidebar-text">${pct}%</span>
+          </div>
+        </td>
+        <td>${sBadge(v.status)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // อัปเดตกราฟ
+  _renderFuelByVehicleChart(ym);
 }
 function initUsageCharts(){
   const mc=document.getElementById('usageMonthChart');
