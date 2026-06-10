@@ -2496,6 +2496,156 @@ function renderDashboard(){
       <div style="position:relative;height:280px"><canvas id="fuelTrendChart"></canvas></div>
     </div>
 
+    <!-- ── อัตราสิ้นเปลืองแต่ละคัน ── -->
+    ${(()=>{
+      // คำนวณอัตราสิ้นเปลืองจริงจาก fuelRecords: ระยะทางที่วิ่งได้ / ลิตรที่เติม
+      // จับคู่ record ที่เรียงตามวันที่ของแต่ละคัน แล้วคำนวณ (mileage_ปัจจุบัน - mileage_ก่อนหน้า) / liters
+      const effByVehicle = {};
+      DB.vehicles.forEach(v => { effByVehicle[v.plate] = []; });
+      // จัดกลุ่มตามทะเบียน แล้วเรียงตามวันที่
+      const grouped = {};
+      DB.fuelRecords.forEach(r => {
+        if(!grouped[r.vehicle]) grouped[r.vehicle] = [];
+        grouped[r.vehicle].push(r);
+      });
+      Object.keys(grouped).forEach(plate => {
+        const sorted = [...grouped[plate]].filter(r=>r.mileage>0).sort((a,b)=>a.date.localeCompare(b.date));
+        for(let i=1;i<sorted.length;i++){
+          const dist = sorted[i].mileage - sorted[i-1].mileage;
+          if(dist>0 && sorted[i].liters>0) effByVehicle[plate]=(effByVehicle[plate]||[]).concat(+(dist/sorted[i].liters).toFixed(2));
+        }
+        // ถ้ามีแค่ 1 record ให้ใช้ค่าเดิมที่บันทึกไว้
+        if(sorted.length===1 && sorted[0].efficiency && +sorted[0].efficiency>0)
+          effByVehicle[plate]=[+sorted[0].efficiency];
+      });
+      const effRows = DB.vehicles.map(v => {
+        const arr = effByVehicle[v.plate]||[];
+        const avg = arr.length>0 ? (arr.reduce((s,x)=>s+x,0)/arr.length).toFixed(2) : '—';
+        const last = arr.length>0 ? arr[arr.length-1].toFixed(2) : '—';
+        const warn = avg!=='—' && +avg < (systemSettings.efficiencyWarnBelow||7.5);
+        const effColor = warn ? 'text-brand-danger' : 'text-brand-success';
+        const warnBadge = warn ? `<span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-danger/20 text-brand-danger font-semibold">ต่ำกว่าเกณฑ์</span>` : '';
+        return `<tr class="hover:bg-sidebar-hover/30 transition">
+          <td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmbulance?' 🚑':''}</td>
+          <td class="pr-3 text-sidebar-textLight">${v.brand} ${v.model}</td>
+          <td class="pr-3 text-sidebar-textLight">${v.fuel}</td>
+          <td class="pr-3 text-center text-sidebar-textLight">${arr.length}</td>
+          <td class="pr-3 font-bold ${effColor}">${avg} ${avg!=='—'?'กม./ล.':''} ${warnBadge}</td>
+          <td class="pr-3 text-sidebar-textLight">${last} ${last!=='—'?'กม./ล.':''}</td>
+          <td>${sBadge(v.status)}</td>
+        </tr>`;
+      }).join('');
+      const avgAll = DB.vehicles.map(v=>{const a=effByVehicle[v.plate]||[];return a.length>0?a.reduce((s,x)=>s+x,0)/a.length:null;}).filter(x=>x!==null);
+      const fleetAvg = avgAll.length>0?(avgAll.reduce((s,x)=>s+x,0)/avgAll.length).toFixed(2):'—';
+      return `<div class="stat-card rounded-2xl p-5">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <h4 class="font-semibold text-sm flex items-center gap-2"><i data-lucide="gauge" class="w-4 h-4 text-orange-400"></i>อัตราสิ้นเปลืองน้ำมันแต่ละคัน (กม./ลิตร)</h4>
+          <span class="text-[11px] text-sidebar-text bg-sidebar-hover px-2 py-1 rounded-full">เกณฑ์ต่ำสุด ${systemSettings.efficiencyWarnBelow||7.5} กม./ล.</span>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          ${qCard('gauge','ค่าเฉลี่ยทั้งฝูง',fleetAvg,'กม./ล.','from-orange-500/20 to-orange-500/5','text-orange-400')}
+          ${qCard('alert-triangle','ต่ำกว่าเกณฑ์',DB.vehicles.filter(v=>{const a=effByVehicle[v.plate]||[];const avg=a.length>0?a.reduce((s,x)=>s+x,0)/a.length:null;return avg!==null&&avg<(systemSettings.efficiencyWarnBelow||7.5);}).length,'คัน','from-brand-danger/20 to-brand-danger/5','text-brand-danger')}
+          ${qCard('check-circle','ผ่านเกณฑ์',DB.vehicles.filter(v=>{const a=effByVehicle[v.plate]||[];const avg=a.length>0?a.reduce((s,x)=>s+x,0)/a.length:null;return avg!==null&&avg>=(systemSettings.efficiencyWarnBelow||7.5);}).length,'คัน','from-brand-success/20 to-brand-success/5','text-brand-success')}
+          ${qCard('help-circle','ยังไม่มีข้อมูล',DB.vehicles.filter(v=>(effByVehicle[v.plate]||[]).length===0).length,'คัน','from-sidebar-hover/80 to-sidebar-hover/40','text-sidebar-text')}
+        </div>
+        <div class="overflow-x-auto mb-5">
+          <table class="w-full text-[12px]">
+            <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
+              <th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">ยี่ห้อ/รุ่น</th><th class="pb-3 pr-3">เชื้อเพลิง</th>
+              <th class="pb-3 pr-3 text-center">ข้อมูล(ครั้ง)</th><th class="pb-3 pr-3">ค่าเฉลี่ย</th><th class="pb-3 pr-3">ครั้งล่าสุด</th><th class="pb-3">สถานะ</th>
+            </tr></thead>
+            <tbody class="divide-y divide-sidebar-border/30">${effRows}</tbody>
+          </table>
+        </div>
+        <h5 class="text-xs font-semibold text-sidebar-text mb-3">กราฟอัตราสิ้นเปลืองแต่ละคัน (กม./ลิตร)</h5>
+        <div class="chart-container"><canvas id="efficiencyChart"></canvas></div>
+      </div>`;
+    })()}
+
+    <!-- ── สถิติการบำรุงรักษา ── -->
+    ${(()=>{
+      const totalCost = DB.maintenance.reduce((s,m)=>s+m.cost,0);
+      const inProgress = DB.maintenance.filter(m=>m.status==='อยู่ระหว่างซ่อม');
+      const done = DB.maintenance.filter(m=>m.status==='เสร็จแล้ว');
+      // จัดกลุ่มค่าใช้จ่ายตามทะเบียน
+      const costByVehicle = {};
+      DB.vehicles.forEach(v=>{ costByVehicle[v.plate]={cost:0,count:0,brand:v.brand,model:v.model}; });
+      DB.maintenance.forEach(m=>{
+        if(!costByVehicle[m.vehicle]) costByVehicle[m.vehicle]={cost:0,count:0,brand:'',model:''};
+        costByVehicle[m.vehicle].cost += m.cost;
+        costByVehicle[m.vehicle].count++;
+      });
+      const maintRows = DB.vehicles.map(v=>{
+        const s = costByVehicle[v.plate]||{cost:0,count:0};
+        const pct = totalCost>0?(s.cost/totalCost*100).toFixed(1):0;
+        return `<tr class="hover:bg-sidebar-hover/30 transition">
+          <td class="py-3 pr-3 font-mono font-semibold text-brand-primaryLight">${v.plate}${v.isAmbulance?' 🚑':''}</td>
+          <td class="pr-3 text-sidebar-textLight">${v.brand} ${v.model}</td>
+          <td class="pr-3 text-center text-sidebar-textLight">${s.count}</td>
+          <td class="pr-3 font-semibold text-brand-danger">${s.cost.toLocaleString()} ฿</td>
+          <td class="pr-3">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 bg-sidebar-hover rounded-full h-1.5" style="min-width:60px">
+                <div class="h-1.5 rounded-full bg-brand-danger" style="width:${pct}%"></div>
+              </div>
+              <span class="text-[11px] text-sidebar-text">${pct}%</span>
+            </div>
+          </td>
+          <td>${sBadge(v.status)}</td>
+        </tr>`;
+      }).join('');
+      const recentRows = DB.maintenance.slice(0,5).map(m=>`
+        <tr class="hover:bg-sidebar-hover/30 transition">
+          <td class="py-2.5 pr-3 text-sidebar-textLight">${fmtD(m.date)}</td>
+          <td class="pr-3 font-mono text-brand-primaryLight font-semibold">${m.vehicle}</td>
+          <td class="pr-3 text-sidebar-textLight">${m.type}</td>
+          <td class="pr-3 text-sidebar-textLight truncate max-w-[140px]">${m.details}</td>
+          <td class="pr-3 font-semibold text-brand-danger">${m.cost.toLocaleString()} ฿</td>
+          <td>${sBadge(m.status)}</td>
+        </tr>`).join('');
+      return `<div class="stat-card rounded-2xl p-5">
+        <h4 class="font-semibold text-sm flex items-center gap-2 mb-4"><i data-lucide="wrench" class="w-4 h-4 text-brand-danger"></i>สถิติการบำรุงรักษา</h4>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+          ${qCard('wrench','ซ่อมบำรุงทั้งหมด',DB.maintenance.length,'ครั้ง','from-brand-danger/20 to-brand-danger/5','text-brand-danger')}
+          ${qCard('clock','กำลังซ่อม',inProgress.length,'คัน','from-brand-warn/20 to-brand-warn/5','text-brand-warn')}
+          ${qCard('check-circle','เสร็จแล้ว',done.length,'ครั้ง','from-brand-success/20 to-brand-success/5','text-brand-success')}
+          ${qCard('banknote','ค่าใช้จ่ายรวม',totalCost.toLocaleString(),'บาท','from-orange-500/20 to-orange-500/5','text-orange-400')}
+        </div>
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div>
+            <h5 class="text-xs font-semibold text-sidebar-text mb-3">ค่าซ่อมแยกตามยานพาหนะ</h5>
+            <div class="overflow-x-auto">
+              <table class="w-full text-[12px]">
+                <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
+                  <th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">ยี่ห้อ/รุ่น</th>
+                  <th class="pb-3 pr-3 text-center">ครั้ง</th><th class="pb-3 pr-3">ค่าใช้จ่าย</th>
+                  <th class="pb-3 pr-3">สัดส่วน</th><th class="pb-3">สถานะ</th>
+                </tr></thead>
+                <tbody class="divide-y divide-sidebar-border/30">${maintRows}</tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <h5 class="text-xs font-semibold text-sidebar-text mb-3">กราฟค่าซ่อมแยกตามประเภท</h5>
+            <div class="chart-container"><canvas id="maintTypeChart"></canvas></div>
+          </div>
+        </div>
+        ${DB.maintenance.length>0?`
+        <div class="mt-5">
+          <h5 class="text-xs font-semibold text-sidebar-text mb-3">รายการซ่อมล่าสุด 5 รายการ</h5>
+          <div class="overflow-x-auto">
+            <table class="w-full text-[12px]">
+              <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
+                <th class="pb-3 pr-3">วันที่</th><th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">ประเภท</th>
+                <th class="pb-3 pr-3">รายละเอียด</th><th class="pb-3 pr-3">ค่าใช้จ่าย</th><th class="pb-3">สถานะ</th>
+              </tr></thead>
+              <tbody class="divide-y divide-sidebar-border/30">${recentRows}</tbody>
+            </table>
+          </div>
+        </div>`:''}
+      </div>`;
+    })()}
+
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       ${qCard('truck','พร้อมใช้',DB.vehicles.filter(v=>v.status==='พร้อม').length+'/'+DB.vehicles.length,'คัน','from-brand-success/20 to-brand-success/5','text-brand-success')}
       ${qCard('calendar','บันทึกเดือนนี้',DB.usageRecords.length,'ครั้ง','from-brand-primary/20 to-brand-primary/5','text-brand-primary')}
@@ -3186,7 +3336,19 @@ function deleteUser(id){if(confirm('ยืนยันลบ?')){DB.users=DB.use
 function renderFuel(){
   const vO=DB.vehicles.map(v=>`<option value="${v.plate}">${v.brand} ${v.model} ${v.plate}</option>`).join('');
   const dO=DB.drivers.map(d=>`<option>${d.name}</option>`).join('');
-  const rows=DB.fuelRecords.map(r=>`<tr class="hover:bg-sidebar-hover/30 transition"><td class="py-3 pr-3 text-sidebar-textLight">${fmtD(r.date)}</td><td class="pr-3 font-mono text-brand-primaryLight font-semibold">${r.vehicle}</td><td class="pr-3 text-sidebar-textLight">${r.driver}</td><td class="pr-3 text-sidebar-textLight">${r.liters} ล.</td><td class="pr-3 text-sidebar-textLight">${r.pricePerLiter} ฿</td><td class="pr-3 font-semibold text-brand-accent">${r.total.toLocaleString()} ฿</td><td class="pr-3 text-sidebar-textLight">${r.mileage.toLocaleString()}</td><td class="text-orange-400 font-semibold">${r.efficiency}</td></tr>`).join('');
+  const rows=DB.fuelRecords.map(r=>`<tr class="hover:bg-sidebar-hover/30 transition" id="frow-${r.id}">
+    <td class="py-3 pr-3 text-sidebar-textLight">${fmtD(r.date)}</td>
+    <td class="pr-3 font-mono text-brand-primaryLight font-semibold">${r.vehicle}</td>
+    <td class="pr-3 text-sidebar-textLight">${r.driver}</td>
+    <td class="pr-3 text-sidebar-textLight">${r.liters} ล.</td>
+    <td class="pr-3 text-sidebar-textLight">${r.pricePerLiter} ฿</td>
+    <td class="pr-3 font-semibold text-brand-accent">${r.total.toLocaleString()} ฿</td>
+    <td class="pr-3 text-sidebar-textLight">${r.mileage.toLocaleString()}</td>
+    <td class="pr-3 text-orange-400 font-semibold">${r.efficiency}</td>
+    <td><button onclick="deleteFuelRecord(${r.id})" class="p-1.5 hover:bg-brand-danger/10 rounded text-sidebar-text hover:text-brand-danger transition" title="ลบรายการนี้"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></td>
+  </tr>`).join('');
+  const emptyMsg = DB.fuelRecords.length===0
+    ? `<tr><td colspan="9" class="py-8 text-center text-sidebar-text text-sm">ยังไม่มีรายการเติมน้ำมัน</td></tr>` : '';
   return `<div class="fade-in space-y-6"><h3 class="text-2xl font-bold flex items-center gap-3"><i data-lucide="fuel" class="w-7 h-7 text-brand-primary"></i>บันทึกการเติมน้ำมัน</h3>
     <div class="stat-card rounded-2xl p-6">
       <form id="fuelForm" onsubmit="event.preventDefault();submitFuel()" class="grid md:grid-cols-2 gap-4">
@@ -3205,12 +3367,55 @@ function renderFuel(){
       <div id="fuelOk" class="hidden mt-4 p-4 bg-brand-success/10 border border-brand-success/30 rounded-xl text-brand-success text-sm flex items-center gap-2"><i data-lucide="check-circle" class="w-5 h-5"></i>บันทึกเรียบร้อย</div>
     </div>
     <div class="stat-card rounded-2xl p-5 overflow-x-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-semibold text-sm flex items-center gap-2"><i data-lucide="list" class="w-4 h-4 text-brand-primary"></i>ประวัติการเติมน้ำมัน</h4>
+        <span class="text-[11px] text-sidebar-text bg-sidebar-hover px-2 py-1 rounded-full">${DB.fuelRecords.length} รายการ</span>
+      </div>
       <table class="w-full text-[12px]">
-        <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50"><th class="pb-3 pr-3">วันที่</th><th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">คนขับ</th><th class="pb-3 pr-3">ปริมาณ</th><th class="pb-3 pr-3">ราคา/ล.</th><th class="pb-3 pr-3">รวม</th><th class="pb-3 pr-3">เลขไมล์</th><th class="pb-3">กม./ล.</th></tr></thead>
-        <tbody class="divide-y divide-sidebar-border/30" id="fuelTableBody">${rows}</tbody>
+        <thead><tr class="text-left text-sidebar-text border-b border-sidebar-border/50">
+          <th class="pb-3 pr-3">วันที่</th><th class="pb-3 pr-3">ทะเบียน</th><th class="pb-3 pr-3">คนขับ</th>
+          <th class="pb-3 pr-3">ปริมาณ</th><th class="pb-3 pr-3">ราคา/ล.</th><th class="pb-3 pr-3">รวม</th>
+          <th class="pb-3 pr-3">เลขไมล์</th><th class="pb-3 pr-3">กม./ล.</th><th class="pb-3">จัดการ</th>
+        </tr></thead>
+        <tbody class="divide-y divide-sidebar-border/30" id="fuelTableBody">${rows||emptyMsg}</tbody>
       </table>
     </div>
   </div>`;
+}
+function deleteFuelRecord(id){
+  const r = DB.fuelRecords.find(x=>x.id===id);
+  if(!r) return;
+  showModal(`<div class="p-6 text-center">
+    <div class="w-14 h-14 rounded-2xl bg-brand-danger/10 flex items-center justify-center mx-auto mb-4">
+      <i data-lucide="trash-2" class="w-7 h-7 text-brand-danger"></i>
+    </div>
+    <h3 class="text-lg font-bold mb-1">ยืนยันการลบรายการ?</h3>
+    <p class="text-sm text-sidebar-text mb-1">${fmtD(r.date)} · ${r.vehicle} · ${r.driver}</p>
+    <p class="text-sm text-brand-info font-semibold mb-5">${r.liters} ล. · ${r.total.toLocaleString()} ฿</p>
+    <p class="text-xs text-sidebar-text/60 mb-6">การลบนี้จะลบออกจากระบบเท่านั้น ข้อมูลใน Google Sheet จะยังคงอยู่</p>
+    <div class="flex gap-3 justify-center">
+      <button onclick="closeModal()" class="px-5 py-2.5 bg-sidebar-hover rounded-xl text-sm font-semibold">ยกเลิก</button>
+      <button onclick="confirmDeleteFuel(${id})" class="px-5 py-2.5 bg-brand-danger hover:bg-brand-danger/80 rounded-xl text-sm font-semibold flex items-center gap-2">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>ลบรายการ
+      </button>
+    </div>
+  </div>`);
+}
+function confirmDeleteFuel(id){
+  DB.fuelRecords = DB.fuelRecords.filter(r=>r.id!==id);
+  closeModal();
+  // ลบ row ออกจาก DOM โดยไม่ต้อง re-render ทั้งหน้า
+  const row = document.getElementById('frow-'+id);
+  if(row) row.remove();
+  // อัปเดตจำนวนรายการ
+  const countEl = document.querySelector('#fuelTableBody')?.closest('.stat-card')?.querySelector('.rounded-full');
+  if(countEl) countEl.textContent = DB.fuelRecords.length + ' รายการ';
+  // แสดงข้อความว่างถ้าไม่มีรายการเหลือ
+  const tbody = document.getElementById('fuelTableBody');
+  if(tbody && DB.fuelRecords.length===0){
+    tbody.innerHTML=`<tr><td colspan="9" class="py-8 text-center text-sidebar-text text-sm">ยังไม่มีรายการเติมน้ำมัน</td></tr>`;
+  }
+  showToast('ลบรายการเติมน้ำมันเรียบร้อย');
 }
 function submitFuel(){
   const v=document.getElementById('fVehicle').value,dt=document.getElementById('fDate').value;
@@ -3281,7 +3486,7 @@ function navigateTo(pageId){
 // ═══════════ CHARTS ═══════════
 const bOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b8fa3',font:{size:11}}}}};
 const gc='rgba(42,45,58,0.5)';
-let _fuelByVehicleChart=null, _fuelTrendChart=null;
+let _fuelByVehicleChart=null, _fuelTrendChart=null, _effChart=null, _maintTypeChart=null;
 
 function initDashCharts(){
   // Booking bar chart
@@ -3293,13 +3498,56 @@ function initDashCharts(){
   const vc=document.getElementById('vehicleTypeChart');
   if(vc)new Chart(vc,{type:'doughnut',data:{labels:Object.keys(typeCounts),datasets:[{data:Object.values(typeCounts),backgroundColor:['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b','#74b9ff']}]},options:{...bOpts}});
 
-  // ── กราฟน้ำมันแยกคัน (เดือนที่เลือก) ──
+  // ── กราฟน้ำมันแยกคัน ──
   const selEl=document.getElementById('dashMonthSelect');
   const ym=selEl?selEl.value:(new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0'));
   _renderFuelByVehicleChart(ym);
 
   // ── กราฟแนวโน้ม 6 เดือน ──
   _renderFuelTrendChart();
+
+  // ── กราฟอัตราสิ้นเปลือง ──
+  const grouped={};
+  DB.fuelRecords.forEach(r=>{if(!grouped[r.vehicle])grouped[r.vehicle]=[];grouped[r.vehicle].push(r);});
+  const effLabels=[], effData=[], effColors=[];
+  const palette=['#6c5ce7','#00cec9','#fdcb6e','#00b894','#ff6b6b','#74b9ff','#fd79a8','#e17055'];
+  const warnLine=systemSettings.efficiencyWarnBelow||7.5;
+  DB.vehicles.forEach((v,i)=>{
+    const sorted=(grouped[v.plate]||[]).filter(r=>r.mileage>0).sort((a,b)=>a.date.localeCompare(b.date));
+    const arr=[];
+    for(let j=1;j<sorted.length;j++){const dist=sorted[j].mileage-sorted[j-1].mileage;if(dist>0&&sorted[j].liters>0)arr.push(+(dist/sorted[j].liters).toFixed(2));}
+    if(arr.length===0&&sorted.length===1&&+sorted[0].efficiency>0)arr.push(+sorted[0].efficiency);
+    const avg=arr.length>0?+(arr.reduce((s,x)=>s+x,0)/arr.length).toFixed(2):null;
+    effLabels.push(v.plate+(v.isAmbulance?' 🚑':''));
+    effData.push(avg);
+    effColors.push(avg!==null&&avg<warnLine?'rgba(255,107,107,0.7)':'rgba(251,146,60,0.7)');
+  });
+  const ec=document.getElementById('efficiencyChart');
+  if(_effChart){_effChart.destroy();}
+  if(ec)_effChart=new Chart(ec,{
+    type:'bar',
+    data:{labels:effLabels,datasets:[{label:'กม./ลิตร',data:effData,backgroundColor:effColors,borderColor:effColors.map(c=>c.replace('0.7','1')),borderWidth:2,borderRadius:8}]},
+    options:{...bOpts,plugins:{...bOpts.plugins,legend:{display:false},annotation:{annotations:{warnLine:{type:'line',yMin:warnLine,yMax:warnLine,borderColor:'rgba(255,107,107,0.6)',borderWidth:2,borderDash:[6,3]}}}},scales:{x:{ticks:{color:'#8b8fa3'},grid:{display:false}},y:{ticks:{color:'#8b8fa3'},grid:{color:gc},beginAtZero:false,title:{display:true,text:'กม./ลิตร',color:'#8b8fa3',font:{size:11}}}}}
+  });
+
+  // ── กราฟบำรุงรักษาแยกประเภท ──
+  const maintTypeCounts={};
+  const maintTypeCosts={};
+  DB.maintenance.forEach(m=>{
+    maintTypeCounts[m.type]=(maintTypeCounts[m.type]||0)+1;
+    maintTypeCosts[m.type]=(maintTypeCosts[m.type]||0)+m.cost;
+  });
+  const mtc=document.getElementById('maintTypeChart');
+  if(_maintTypeChart){_maintTypeChart.destroy();}
+  if(mtc){
+    const mtLabels=Object.keys(maintTypeCounts);
+    const mtColors=['#ff6b6b','#fdcb6e','#6c5ce7','#00b894','#74b9ff','#e17055'];
+    _maintTypeChart=new Chart(mtc,{
+      type:'doughnut',
+      data:{labels:mtLabels,datasets:[{data:Object.values(maintTypeCounts),backgroundColor:mtColors.slice(0,mtLabels.length)}]},
+      options:{...bOpts,plugins:{legend:{labels:{color:'#8b8fa3',font:{size:10},boxWidth:12}}}}
+    });
+  }
 }
 
 function _renderFuelByVehicleChart(ym){
